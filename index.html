@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Bridgeland Line Finder</title>
+<style>
+:root {
+  --navy:#17365D;
+  --blue:#2F5597;
+  --bg:#F5F7FA;
+  --card:#FFFFFF;
+  --border:#D8DEE6;
+  --muted:#667085;
+  --day:#D9EAF7;
+  --evening:#FCE4C8;
+  --night:#D8D0EA;
+  --off:#F1F3F5;
+  --green:#DCEAD5;
+}
+* { box-sizing:border-box; }
+body {
+  margin:0;
+  font-family:Inter,Arial,sans-serif;
+  background:var(--bg);
+  color:#1F2937;
+}
+.hero {
+  background:linear-gradient(135deg,var(--navy),var(--blue));
+  color:white;
+  padding:28px 18px 24px;
+}
+.wrap {
+  width:min(1120px,calc(100% - 28px));
+  margin:0 auto;
+}
+.hero h1 {
+  margin:0 0 6px;
+  font-size:clamp(28px,5vw,46px);
+  line-height:1.05;
+}
+.hero p {
+  margin:0;
+  opacity:.92;
+  max-width:760px;
+}
+.panel {
+  margin-top:-14px;
+  background:white;
+  border:1px solid var(--border);
+  border-radius:18px;
+  padding:18px;
+  box-shadow:0 10px 30px rgba(23,54,93,.10);
+}
+.filters {
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:12px;
+}
+label {
+  display:block;
+  font-size:12px;
+  font-weight:700;
+  color:#475467;
+  margin-bottom:6px;
+}
+select {
+  width:100%;
+  padding:12px 13px;
+  border:1px solid #C9D2DC;
+  border-radius:10px;
+  background:white;
+  font-size:15px;
+}
+select:disabled {
+  background:#F2F4F7;
+  color:#98A2B3;
+}
+.actions {
+  margin-top:14px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  flex-wrap:wrap;
+}
+.count {
+  font-weight:800;
+  color:var(--navy);
+}
+button {
+  border:none;
+  background:#E9EEF5;
+  color:var(--navy);
+  border-radius:10px;
+  padding:10px 14px;
+  font-weight:700;
+  cursor:pointer;
+}
+.results {
+  padding:24px 0 44px;
+}
+.empty {
+  background:white;
+  border:1px dashed #B8C2CC;
+  border-radius:16px;
+  padding:30px;
+  text-align:center;
+  color:var(--muted);
+}
+.card {
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:16px;
+  margin-bottom:18px;
+  overflow:hidden;
+  box-shadow:0 4px 14px rgba(0,0,0,.05);
+}
+.cardhead {
+  background:var(--blue);
+  color:white;
+  padding:14px 16px;
+  display:flex;
+  justify-content:space-between;
+  gap:10px;
+  flex-wrap:wrap;
+}
+.cardhead h3 {
+  margin:0;
+  font-size:20px;
+}
+.meta {
+  font-size:13px;
+  opacity:.95;
+}
+.tablewrap { overflow-x:auto; }
+table {
+  border-collapse:collapse;
+  width:100%;
+  min-width:760px;
+}
+th,td {
+  border:1px solid #D6DDE5;
+  text-align:center;
+  padding:10px 8px;
+  font-size:13px;
+}
+th {
+  background:#E8EEF7;
+  color:#344054;
+}
+.week {
+  background:#EEF2F7;
+  font-weight:800;
+  white-space:nowrap;
+}
+.shift-day { background:var(--day); }
+.shift-evening { background:var(--evening); }
+.shift-night { background:var(--night); }
+.shift-off { background:var(--off); color:#667085; }
+.shift-weekend { background:var(--green); }
+.legend {
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  margin-top:10px;
+  font-size:12px;
+  color:#475467;
+}
+.legend span {
+  display:inline-flex;
+  gap:6px;
+  align-items:center;
+}
+.dot {
+  width:13px;height:13px;border-radius:3px;border:1px solid #C6CCD3;
+}
+.note {
+  padding:11px 16px 14px;
+  color:#667085;
+  font-size:12px;
+}
+.role-pill {
+  display:inline-block;
+  background:rgba(255,255,255,.16);
+  border:1px solid rgba(255,255,255,.22);
+  border-radius:999px;
+  padding:4px 9px;
+  margin-left:6px;
+}
+
+.hero-row {
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:18px;
+}
+.hero-nav {
+  display:flex;
+  gap:10px;
+  flex-wrap:nowrap;
+  justify-content:flex-end;
+}
+
+.hero-link {
+  display:inline-block;
+  flex:0 0 auto;
+  color:white;
+  text-decoration:none;
+  font-weight:800;
+  border:1px solid rgba(255,255,255,.38);
+  background:rgba(255,255,255,.12);
+  border-radius:10px;
+  padding:10px 14px;
+  transition:background .2s ease;
+}
+.hero-link:hover { background:rgba(255,255,255,.22); }
+@media (max-width:620px) {
+  .hero-row { flex-direction:column; }
+  .hero-nav { justify-content:flex-start; }
+}
+@media (max-width:820px) {
+  .filters { grid-template-columns:1fr 1fr; }
+}
+@media (max-width:520px) {
+  .wrap { width:min(100% - 18px,1120px); }
+  .filters { grid-template-columns:1fr; }
+  .panel { padding:14px;border-radius:14px; }
+  .cardhead h3 { font-size:18px; }
+}
+
+@media (max-width:620px) {
+  .hero-nav {
+    flex-wrap:nowrap;
+    width:100%;
+    gap:8px;
+  }
+  .hero-nav .hero-link {
+    flex:1 1 0;
+    text-align:center;
+    white-space:nowrap;
+    padding:9px 10px;
+    font-size:13px;
+  }
+}
+
+</style>
+</head>
+<body>
+<section class="hero">
+  <div class="wrap hero-row">
+    <div>
+      <h1>Bridgeland Line Finder</h1>
+      <p>Choose your position, floor, FTE and shift combination to view the matching Line schedules.</p>
+    </div>
+    <nav class="hero-nav" aria-label="Site navigation">
+      <a class="hero-link" href="decision-criteria.html">Decision Criteria</a>
+      <a class="hero-link" href="program-descriptions.html">Program Descriptions</a>
+    </nav>
+  </div>
+</section>
+
+<main class="wrap">
+  <section class="panel">
+    <div class="filters">
+      <div>
+        <label for="position">Position *</label>
+        <select id="position">
+          <option value="">Select position</option>
+          <optgroup label="Nursing & Care">
+            <option value="HCA">HCA</option>
+            <option value="LPN">LPN</option>
+            <option value="RN">RN</option>
+          </optgroup>
+          <optgroup label="Allied Health">
+            <option value="Mental Health Manager">Mental Health Manager</option>
+            <option value="Therapy Assistant">Therapy Assistant</option>
+            <option value="Therapy Aide">Therapy Aide</option>
+            <option value="Occupational Therapist">Occupational Therapist</option>
+            <option value="Recreation Therapist">Recreation Therapist</option>
+            <option value="Social Worker II">Social Worker II</option>
+            <option value="Dietitian">Dietitian</option>
+            <option value="Physical Therapist">Physical Therapist</option>
+            <option value="Allied Health Team Lead">Allied Health Team Lead</option>
+            <option value="Nurse Practitioner">Nurse Practitioner</option>
+            <option value="Mental Health Therapist">Mental Health Therapist</option>
+            <option value="Social Worker I">Social Worker I</option>
+          </optgroup>
+        </select>
+      </div>
+
+      <div>
+        <label for="floor">Floor *</label>
+        <select id="floor" disabled>
+          <option value="">Select position first</option>
+        </select>
+      </div>
+
+      <div>
+        <label for="fte">FTE *</label>
+        <select id="fte" disabled>
+          <option value="">Select position and floor first</option>
+        </select>
+      </div>
+
+      <div>
+        <label for="shift">Shift Combination *</label>
+        <select id="shift" disabled>
+          <option value="">Select FTE first</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="actions">
+      <div id="count" class="count">Choose all 4 filters to view Lines.</div>
+      <button id="reset" type="button">Reset filters</button>
+    </div>
+
+    <div class="legend">
+      <span><i class="dot" style="background:var(--day)"></i> Day</span>
+      <span><i class="dot" style="background:var(--evening)"></i> Evening</span>
+      <span><i class="dot" style="background:var(--night)"></i> Night</span>
+      <span><i class="dot" style="background:var(--off)"></i> Off / x</span>
+      <span><i class="dot" style="background:var(--green)"></i> Weekend marker (~)</span>
+    </div>
+  </section>
+
+  <section id="results" class="results">
+    <div class="empty">Select the required options above to view matching Lines.</div>
+  </section>
+</main>
+
+<script>
+const lines=[{"position":"HCA","floor":"Level 2","fte":1.0,"line":1,"hours":77.5,"lineType":"D/E","identifier":"Flr2-HCA-1.0-DE-L1","weeks":[["D","D","E","E","E","E","E"],["","","E","E","E","E","E"],["","","E","E","E","E","E"],["","","D","D","D","~",""],["D","D","D","D","D","~",""],["D","D","E","E","E","E","E"],["","","E","E","E","E","E"],["","","E","E","E","E","E"],["","","D","D","D","~",""],["D","D","D","D","D","~",""]]},{"position":"HCA","floor":"Level 2","fte":1.0,"line":2,"hours":77.5,"lineType":"D/E","identifier":"Flr2-HCA-1.0-DE-L2","weeks":[["","","D","D","D","~",""],["D","D","D","D","D","~",""],["D","D","E","E","E","E","E"],["","","E","E","E","E","E"],["","","E","E","E","E","E"],["","","D","D","D","~",""],["D","D","D","D","D","~",""],["D","D","E","E","E","E","E"],["","","E","E","E","E","E"],["","","E","E","E","E","E"]]},{"position":"HCA","floor":"Level 2","fte":0.8,"line":3,"hours":62.0,"lineType":"D/N","identifier":"Flr2-HCA-0.8-DN-L3","weeks":[["N","N","","","N","N",""],["","","","N","N","N","N"],["","","N","N","","~",""],["D","D","D","D","D","~",""],["D","D","","","N","N","N"],["N","N","","","N","N",""],["","","","N","N","N","N"],["","","N","N","","~",""],["D","D","D","D","D","~",""],["D","D","","","N","N","N"]]},{"position":"HCA","floor":"Level 2","fte":0.8,"line":4,"hours":62.0,"lineType":"D/N","identifier":"Flr2-HCA-0.8-DN-L4","weeks":[["D","D","N","N","","~",""],["D","D","","","D","D","D"],["N","N","","","N","N",""],["","","N","N","N","N","N"],["","","N","N","","~",""],["D","D","N","N","","~",""],["D","D","","","D","D","D"],["N","N","","","N","N",""],["","","N","N","N","N","N"],["","","N","N","","~",""]]},{"position":"HCA","floor":"Level 2","fte":0.8,"line":5,"hours":62.0,"lineType":"D/E","identifier":"Flr2-HCA-0.8-DE-L5","weeks":[["","","E","E","E","E","E"],["","","E","E","E","E","E"],["","","D","D","D","D","D"],["","","E","E","","~",""],["","","D","D","D","~",""],["","","E","E","E","E","E"],["","","E","E","E","E","E"],["","","D","D","D","D","D"],["","","E","E","","~",""],["","","D","D","D","~",""]]},{"position":"HCA","floor":"Level 2","fte":0.8,"line":6,"hours":62.0,"lineType":"D/E","identifier":"Flr2-HCA-0.8-DE-L6","weeks":[["E","E","","","D","D","D"],["E","E","","","","~",""],["","","D","D","D","~",""],["D","D","","","E","E","E"],["E","E","","","E","E","E"],["E","E","","","D","D","D"],["E","E","","","","~",""],["","","D","D","D","~",""],["D","D","","","E","E","E"],["E","E","","","E","E","E"]]},{"position":"HCA","floor":"Level 2","fte":0.6,"line":7,"hours":46.5,"lineType":"D/E","identifier":"Flr2-HCA-0.6-DE-L7","weeks":[["","","","","","D","D"],["E","E","","","","D","D"],["E","E","","","","~",""],["E","E","","","","D","D"],["","E","E","E","","~",""],["","","","","","D","D"],["E","E","","","","D","D"],["E","E","","","","~",""],["E","E","","","","D","D"],["","E","E","E","","~",""]]},{"position":"HCA","floor":"Level 2","fte":0.6,"line":8,"hours":46.5,"lineType":"D/E","identifier":"Flr2-HCA-0.6-DE-L8","weeks":[["E","E","","","","~",""],["","","D","D","","~",""],["E","E","","","","D","D"],["E","E","","","","D","D"],["E","","","","","D","D"],["E","E","","","","~",""],["","","D","D","","~",""],["E","E","","","","D","D"],["E","E","","","","D","D"],["E","","","","","D","D"]]},{"position":"HCA","floor":"Level 2","fte":0.6,"line":9,"hours":46.5,"lineType":"D/N","identifier":"Flr2-HCA-0.6-DN-L9","weeks":[["","","D","D","","","N"],["N","N","N","","","~",""],["D","D","","","","","N"],["N","N","","","","~",""],["N","N","","","","D","D"],["","","D","D","","","N"],["N","N","N","","","~",""],["D","D","","","","","N"],["N","N","","","","~",""],["N","N","","","","D","D"]]},{"position":"HCA","floor":"Level 2","fte":1.0,"line":10,"hours":77.5,"lineType":"D/E","identifier":"Flr2-HCA-1.0-DE-L10","weeks":[["D","D","E","E","E","E","E"],["","","E","E","E","E","E"],["","","E","E","E","E","E"],["","","D","D","D","~",""],["D","D","D","D","D","~",""],["D","D","E","E","E","E","E"],["","","E","E","E","E","E"],["","","E","E","E","E","E"],["","","D","D","D","~",""],["D","D","D","D","D","~",""]]},{"position":"HCA","floor":"Level 2","fte":1.0,"line":11,"hours":77.5,"lineType":"D/E","identifier":"Flr2-HCA-1.0-DE-L11","weeks":[["","","D","D","D","~",""],["D","D","D","D","D","~",""],["D","D","E","E","E","E","E"],["","","E","E","E","E","E"],["","","E","E","E","E","E"],["","","D","D","D","~",""],["D","D","D","D","D","~",""],["D","D","E","E","E","E","E"],["","","E","E","E","E","E"],["","","E","E","E","E","E"]]},{"position":"HCA","floor":"Level 2","fte":0.8,"line":12,"hours":62.0,"lineType":"D/N","identifier":"Flr2-HCA-0.8-DN-L12","weeks":[["N","N","","","N","N",""],["","","","N","N","N","N"],["","","N","N","","~",""],["D","D","D","D","D","~",""],["D","D","","","N","N","N"],["N","N","","","N","N",""],["","","","N","N","N","N"],["","","N","N","","~",""],["D","D","D","D","D","~",""],["D","D","","","N","N","N"]]},{"position":"HCA","floor":"Level 2","fte":0.8,"line":13,"hours":62.0,"lineType":"D/N","identifier":"Flr2-HCA-0.8-DN-L13","weeks":[["D","D","N","N","","~",""],["D","D","","","D","D","D"],["N","N","","","N","N",""],["","","N","N","N","N","N"],["","","N","N","","~",""],["D","D","N","N","","~",""],["D","D","","","D","D","D"],["N","N","","","N","N",""],["","","N","N","N","N","N"],["","","N","N","","~",""]]},{"position":"HCA","floor":"Level 2","fte":0.8,"line":14,"hours":62.0,"lineType":"D/E","identifier":"Flr2-HCA-0.8-DE-L14","weeks":[["","","E","E","E","E","E"],["","","E","E","E","E","E"],["","","D","D","D","D","D"],["","","E","E","","~",""],["","","D","D","D","~",""],["","","E","E","E","E","E"],["","","E","E","E","E","E"],["","","D","D","D","D","D"],["","","E","E","","~",""],["","","D","D","D","~",""]]},{"position":"HCA","floor":"Level 2","fte":0.8,"line":15,"hours":62.0,"lineType":"D/E","identifier":"Flr2-HCA-0.8-DE-L15","weeks":[["E","E","","","D","D","D"],["E","E","","","","~",""],["","","D","D","D","~",""],["D","D","","","E","E","E"],["E","E","","","E","E","E"],["E","E","","","D","D","D"],["E","E","","","","~",""],["","","D","D","D","~",""],["D","D","","","E","E","E"],["E","E","","","E","E","E"]]},{"position":"HCA","floor":"Level 2","fte":0.6,"line":16,"hours":46.5,"lineType":"D/E","identifier":"Flr2-HCA-0.6-DE-L16","weeks":[["","","","","","D","D"],["E","E","","","","D","D"],["E","E","","","","~",""],["E","E","","","","D","D"],["","E","E","E","","~",""],["","","","","","D","D"],["E","E","","","","D","D"],["E","E","","","","~",""],["E","E","","","","D","D"],["","E","E","E","","~",""]]},{"position":"HCA","floor":"Level 2","fte":0.6,"line":17,"hours":46.5,"lineType":"D/E","identifier":"Flr2-HCA-0.6-DE-L17","weeks":[["E","E","","","","~",""],["","","D","D","","~",""],["E","E","","","","D","D"],["E","E","","","","D","D"],["E","","","","","D","D"],["E","E","","","","~",""],["","","D","D","","~",""],["E","E","","","","D","D"],["E","E","","","","D","D"],["E","","","","","D","D"]]},{"position":"HCA","floor":"Level 2","fte":0.6,"line":18,"hours":46.5,"lineType":"D/N","identifier":"Flr2-HCA-0.6-DN-L18","weeks":[["","","D","D","","","N"],["N","N","N","","","~",""],["D","D","","","","","N"],["N","N","","","","~",""],["N","N","","","","D","D"],["","","D","D","","","N"],["N","N","N","","","~",""],["D","D","","","","","N"],["N","N","","","","~",""],["N","N","","","","D","D"]]},{"position":"HCA","floor":"Level 2","fte":1.0,"line":19,"hours":77.5,"lineType":"D/E","identifier":"Flr2-HCA-1.0-DE-L19","weeks":[["D","D","E","E","E","E","E"],["","","E","E","E","E","E"],["","","E","E","E","E","E"],["","","D","D","D","~",""],["D","D","D","D","D","~",""],["D","D","E","E","E","E","E"],["","","E","E","E","E","E"],["","","E","E","E","E","E"],["","","D","D","D","~",""],["D","D","D","D","D","~",""]]},{"position":"HCA","floor":"Level 2","fte":1.0,"line":20,"hours":77.5,"lineType":"D/E","identifier":"Flr2-HCA-1.0-DE-L20","weeks":[["","","E","E","E","E","E"],["","","D","D","D","~",""],["D","D","D","D","D","~",""],["D","D","D","E","E","E","E"],["","","E","E","E","E","E"],["","","E","E","E","E","E"],["","","D","D","D","~",""],["D","D","D","D","D","~",""],["D","D","D","E","E","E","E"],["","","E","E","E","E","E"]]},{"position":"HCA","floor":"Level 2","fte":1.0,"line":21,"hours":77.5,"lineType":"D/E","identifier":"Flr2-HCA-1.0-DE-L21","weeks":[["D","D","D","D","D","~",""],["D","D","E","E","E","E","E"],["","","E","E","E","E","E"],["","","E","E","E","E","E"],["","","D","D","D","~",""],["D","D","D","D","D","~",""],["D","D","E","E","E","E","E"],["","","E","E","E","E","E"],["","","E","E","E","E","E"],["","","D","D","D","~",""]]},{"position":"HCA","floor":"Level 2","fte":1.0,"line":22,"hours":77.5,"lineType":"D/N","identifier":"Flr2-HCA-1.0-DN-L22","weeks":[["N","N","N","N","","~",""],["D","D","D","D","D","~",""],["DF","DF","DF","DF","N","N","N"],["","","","N","N","N","N"],["N","N","","","N","N","N"],["N","N","N","N","","~",""],["D","D","D","D","D","~",""],["DF","DF","DF","DF","N","N","N"],["","","","N","N","N","N"],["N","N","","","N","N","N"]]},{"position":"HCA","floor":"Level 2","fte":1.0,"line":23,"hours":77.5,"lineType":"D/N","identifier":"Flr2-HCA-1.0-DN-L23","weeks":[["DF","DF","DF","DF","N","N","N"],["","","","N","N","N","N"],["N","N","","","N","N","N"],["N","N","N","N","","~",""],["DF","DF","DF","DF","DF","~",""],["DF","DF","DF","DF","N","N","N"],["","","","N","N","N","N"],["N","N","","","N","N","N"],["N","N","N","N","","~",""],["DF","DF","DF","DF","DF","~",""]]},{"position":"HCA","floor":"Level 2","fte":1.0,"line":24,"hours":77.5,"lineType":"D/N","identifier":"Flr2-HCA-1.0-DN-L24","weeks":[["N","N","N","N","","~",""],["DF","DF","DF","DF","DF","~",""],["D","D","D","D","N","N","N"],["","","","N","N","N","N"],["N","N","","","N","N","N"],["N","N","N","N","","~",""],["DF","DF","DF","DF","DF","~",""],["D","D","D","D","N","N","N"],["","","","N","N","N","N"],["N","N","","","N","N","N"]]},{"position":"HCA","floor":"Level 2","fte":0.8,"line":25,"hours":62.0,"lineType":"D/E","identifier":"Flr2-HCA-0.8-DE-L25","weeks":[["","","D","D","D","D","D"],["","","EF","EF","","~",""],["E","E","","","EF","EF","EF"],["EF","","","D","D","~",""],["E","E","","","EF","EF","EF"],["","","D","D","D","D","D"],["","","EF","EF","","~",""],["E","E","","","EF","EF","EF"],["EF","","","D","D","~",""],["E","E","","","EF","EF","EF"]]},{"position":"HCA","floor":"Level 2","fte":0.8,"line":26,"hours":62.0,"lineType":"D/E","identifier":"Flr2-HCA-0.8-DE-L26","weeks":[["EF","EF","EF","","","~",""],["E","E","","","EF","EF","EF"],["","","EF","EF","","~",""],["D","D","","","DF","DF","DF"],["E","E","E","","","D","D"],["EF","EF","EF","","","~",""],["E","E","","","EF","EF","EF"],["","","EF","EF","","~",""],["D","D","","","DF","DF","DF"],["E","E","E","","","D","D"]]},{"position":"HCA","floor":"Level 2","fte":0.8,"line":27,"hours":62.0,"lineType":"D/E","identifier":"Flr2-HCA-0.8-DE-L27","weeks":[["E","E","","","","~",""],["EF","EF","","","","D","D"],["E","E","","","D","D","D"],["E","E","E","","","D","D"],["EF","EF","EF","EF","","~",""],["E","E","","","","~",""],["EF","EF","","","","D","D"],["E","E","","","D","D","D"],["E","E","E","","","D","D"],["EF","EF","EF","EF","","~",""]]},{"position":"HCA","floor":"Level 2","fte":0.8,"line":28,"hours":62.0,"lineType":"D/N","identifier":"Flr2-HCA-0.8-DN-L28","weeks":[["N","N","","","N","N","N"],["N","N","N","","","~",""],["N","N","N","N","","~",""],["DF","DF","","","","D","D"],["D","D","","","","DF","DF"],["N","N","","","N","N","N"],["N","N","N","","","~",""],["N","N","N","N","","~",""],["DF","DF","","","","D","D"],["D","D","","","","DF","DF"]]},{"position":"HCA","floor":"Level 2","fte":0.8,"line":29,"hours":62.0,"lineType":"E/N","identifier":"Flr2-HCA-0.8-EN-L29","weeks":[["","","N","N","N","N","N"],["","","N","N","","~",""],["N","N","N","N","","~",""],["E","E","","","EF","EF","EF"],["","","","E","E","E","E"],["","","N","N","N","N","N"],["","","N","N","","~",""],["N","N","N","N","","~",""],["E","E","","","EF","EF","EF"],["","","","E","E","E","E"]]},{"position":"HCA","floor":"Level 2","fte":0.8,"line":30,"hours":62.0,"lineType":"E/N","identifier":"Flr2-HCA-0.8-EN-L30","weeks":[["","","","EF","EF","EF","EF"],["","N","N","N","N","N","N"],["","","N","N","","~",""],["N","N","N","","","~",""],["","","N","N","N","N","N"],["","","","EF","EF","EF","EF"],["","N","N","N","N","N","N"],["","","N","N","","~",""],["N","N","N","","","~",""],["","","N","N","N","N","N"]]},{"position":"HCA","floor":"Level 2","fte":0.6,"line":31,"hours":46.5,"lineType":"D/N","identifier":"Flr2-HCA-0.6-DN-L31","weeks":[["","","","","","D","D"],["N","","","","","DF","DF"],["","","","","DF","DF","DF"],["N","N","N","","","~",""],["N","N","N","N","","~",""],["","","","","","D","D"],["N","","","","","DF","DF"],["","","","","DF","DF","DF"],["N","N","N","","","~",""],["N","N","N","N","","~",""]]},{"position":"HCA","floor":"Level 2","fte":0.6,"line":32,"hours":46.5,"lineType":"D/E","identifier":"Flr2-HCA-0.6-DE-L32","weeks":[["E","E","","","","~",""],["E","E","","","","D","D"],["EF","EF","","","","D","D"],["","EF","EF","EF","","~",""],["","","","","","D","D"],["E","E","","","","~",""],["E","E","","","","D","D"],["EF","EF","","","","D","D"],["","EF","EF","EF","","~",""],["","","","","","D","D"]]},{"position":"HCA","floor":"Level 2","fte":0.6,"line":33,"hours":46.5,"lineType":"D/N","identifier":"Flr2-HCA-0.6-DN-L33","weeks":[["","","","","DF","DF","DF"],["N","N","","","N","N","N"],["","","","","","~",""],["","","DF","DF","N","N","N"],["","","N","N","","~",""],["","","","","DF","DF","DF"],["N","N","","","N","N","N"],["","","","","","~",""],["","","DF","DF","N","N","N"],["","","N","N","","~",""]]},{"position":"HCA","floor":"Level 3 - 15 Beds","fte":1.0,"line":1,"hours":"","lineType":"D/E","identifier":"Flr3-HCA-1.0-DE-L1","weeks":[["D","D","E","E","E","E","E"],["","","E","E","E","E","E"],["","","E","E","E","E","E"],["","","D","D","D","~",""],["D","D","D","D","D","~",""],["D","D","E","E","E","E","E"],["","","E","E","E","E","E"],["","","E","E","E","E","E"],["","","D","D","D","~",""],["D","D","D","D","D","~",""]]},{"position":"HCA","floor":"Level 3 - 15 Beds","fte":1.0,"line":2,"hours":"","lineType":"D/E","identifier":"Flr3-HCA-1.0-DE-L2","weeks":[["D","D","D","D","D","~",""],["D","D","E","E","E","E","E"],["","","E","E","E","E","E"],["","","E","E","E","E","E"],["","","D","D","D","~",""],["D","D","D","D","D","~",""],["D","D","E","E","E","E","E"],["","","E","E","E","E","E"],["","","E","E","E","E","E"],["","","D","D","D","~",""]]},{"position":"HCA","floor":"Level 3 - 15 Beds","fte":1.0,"line":3,"hours":"","lineType":"D/E","identifier":"Flr3-HCA-1.0-DE-L3","weeks":[["","","E","E","E","E","E"],["","","E","E","E","E","E"],["","","D","D","D","~",""],["D","D","D","D","D","~",""],["D","D","E","E","E","E","E"],["","","E","E","E","E","E"],["","","E","E","E","E","E"],["","","D","D","D","~",""],["D","D","D","D","D","~",""],["D","D","E","E","E","E","E"]]},{"position":"HCA","floor":"Level 3 - 15 Beds","fte":1.0,"line":4,"hours":"","lineType":"D/E","identifier":"Flr3-HCA-1.0-DE-L4","weeks":[["","","E","E","E","E","E"],["","","D","D","D","~",""],["D","D","D","D","D","~",""],["D","D","E","E","E","E","E"],["","","E","E","E","E","E"],["","","E","E","E","E","E"],["","","D","D","D","~",""],["D","D","D","D","D","~",""],["D","D","E","E","E","E","E"],["","","E","E","E","E","E"]]},{"position":"HCA","floor":"Level 3 - 15 Beds","fte":0.8,"line":5,"hours":"","lineType":"D/N","identifier":"Flr3-HCA-0.8-DN-L5","weeks":[["D","D","","","N","N","N"],["","","N","N","N","N","N"],["","","","","N","N","N"],["","","N","N","","~",""],["D","D","D","D","D","~",""],["D","D","","","N","N","N"],["","","N","N","N","N","N"],["","","","","N","N","N"],["","","N","N","","~",""],["D","D","D","D","D","~",""]]},{"position":"HCA","floor":"Level 3 - 15 Beds","fte":0.8,"line":6,"hours":"","lineType":"D/N","identifier":"Flr3-HCA-0.8-DN-L6","weeks":[["","","N","N","","~",""],["D","D","D","D","D","~",""],["D","D","","","N","N","N"],["N","N","","","N","N","N"],["","","","","N","N","N"],["","","N","N","","~",""],["D","D","D","D","D","~",""],["D","D","","","N","N","N"],["N","N","","","N","N","N"],["","","","","N","N","N"]]},{"position":"HCA","floor":"Level 3 - 15 Beds","fte":0.8,"line":7,"hours":"","lineType":"D/N","identifier":"Flr3-HCA-0.8-DN-L7","weeks":[["","","","","N","N","N"],["","","N","N","","~",""],["D","D","D","D","D","~",""],["","","D","D","N","N","N"],["","","N","N","N","N","N"],["","","","","N","N","N"],["","","N","N","","~",""],["D","D","D","D","D","~",""],["","","D","D","N","N","N"],["","","N","N","N","N","N"]]},{"position":"HCA","floor":"Level 3 - 15 Beds","fte":0.8,"line":8,"hours":"","lineType":"D/N","identifier":"Flr3-HCA-0.8-DN-L8","weeks":[["","","D","D","D","D","D"],["","","","","N","N","N"],["N","N","","","","D","D"],["N","N","N","N","","~",""],["N","N","N","N","","~",""],["","","D","D","D","D","D"],["","","","","N","N","N"],["N","N","","","","D","D"],["N","N","N","N","","~",""],["N","N","N","N","","~",""]]},{"position":"HCA","floor":"Level 3 - 15 Beds","fte":0.8,"line":9,"hours":"","lineType":"D/E","identifier":"Flr3-HCA-0.8-DE-L9","weeks":[["","","D","D","","~",""],["D","D","D","D","D","~",""],["E","E","","","E","E","E"],["E","E","","","E","E","E"],["","","","","E","E","E"],["","","D","D","","~",""],["D","D","D","D","D","~",""],["E","E","","","E","E","E"],["E","E","","","E","E","E"],["","","","","E","E","E"]]},{"position":"HCA","floor":"Level 3 - 15 Beds","fte":0.8,"line":10,"hours":"","lineType":"D/E","identifier":"Flr3-HCA-0.8-DE-L10","weeks":[["E","E","","","D","D","D"],["E","E","","","","~",""],["E","E","E","E","","~",""],["E","E","","","D","D","D"],["E","E","","","","D","D"],["E","E","","","D","D","D"],["E","E","","","","~",""],["E","E","E","E","","~",""],["E","E","","","D","D","D"],["E","E","","","","D","D"]]},{"position":"HCA","floor":"Level 3 - 15 Beds","fte":0.6,"line":11,"hours":"","lineType":"D/N","identifier":"Flr3-HCA-0.6-DN-L11","weeks":[["N","N","","","","D","D"],["N","N","","","","~",""],["N","N","N","N","","~",""],["D","D","","","","D","D"],["N","N","","","","~",""],["N","N","N","N","","~",""],["N","N","","","","D","D"],["","","N","N","","~",""],["","","","","","D","D"],["","","","","","D","D"]]},{"position":"HCA","floor":"Level 3 - 15 Beds","fte":0.6,"line":12,"hours":"","lineType":"D/N","identifier":"Flr3-HCA-0.6-DN-L12","weeks":[["N","N","N","N","","~",""],["N","N","","","","D","D"],["","","N","N","","~",""],["","","","","","D","D"],["","","","","","D","D"],["N","N","","","","D","D"],["N","N","","","","~",""],["N","N","N","N","","~",""],["D","D","","","","D","D"],["N","N","","","","~",""]]},{"position":"HCA","floor":"Level 3 - 15 Beds","fte":0.6,"line":13,"hours":"","lineType":"D/E","identifier":"Flr3-HCA-0.6-DE-L13","weeks":[["E","E","","","","~",""],["E","E","","","","D","D"],["E","E","","","","D","D"],["E","E","","","","~",""],["E","E","","","","D","D"],["E","E","","","","~",""],["E","E","","","","D","D"],["","","","","","D","D"],["","","E","E","","~",""],["E","E","E","E","","~",""]]},{"position":"HCA","floor":"Level 3 - 15 Beds","fte":0.6,"line":14,"hours":"","lineType":"D/E","identifier":"Flr3-HCA-0.6-DE-L14","weeks":[["E","E","","","","~",""],["E","E","","","","D","D"],["","","","","","D","D"],["","","E","E","","~",""],["E","E","E","E","","~",""],["E","E","","","","~",""],["E","E","","","","D","D"],["E","E","","","","D","D"],["E","E","","","","~",""],["E","E","","","","D","D"]]},{"position":"HCA","floor":"Level 3 - 30 Beds","fte":1.0,"line":1,"hours":"","lineType":"D/E","identifier":"Flr3-HCA-1.0-DE-L1","weeks":[["D","D","E","E","E","E","E"],["","","E","E","E","E","E"],["","","E","E","E","E","E"],["","","D","D","D","~",""],["D","D","D","D","D","~",""],["D","D","E","E","E","E","E"],["","","E","E","E","E","E"],["","","E","E","E","E","E"],["","","D","D","D","~",""],["D","D","D","D","D","~",""]]},{"position":"HCA","floor":"Level 3 - 30 Beds","fte":1.0,"line":2,"hours":"","lineType":"D/E","identifier":"Flr3-HCA-1.0-DE-L2","weeks":[["D","D","D","D","D","~",""],["D","D","E","E","E","E","E"],["","","E","E","E","E","E"],["","","E","E","E","E","E"],["","","D","D","D","~",""],["D","D","D","D","D","~",""],["D","D","E","E","E","E","E"],["","","E","E","E","E","E"],["","","E","E","E","E","E"],["","","D","D","D","~",""]]},{"position":"HCA","floor":"Level 3 - 30 Beds","fte":1.0,"line":3,"hours":"","lineType":"D/E","identifier":"Flr3-HCA-1.0-DE-L3","weeks":[["","","E","E","E","E","E"],["","","E","E","E","E","E"],["","","D","D","D","~",""],["D","D","D","D","D","~",""],["D","D","E","E","E","E","E"],["","","E","E","E","E","E"],["","","E","E","E","E","E"],["","","D","D","D","~",""],["D","D","D","D","D","~",""],["D","D","E","E","E","E","E"]]},{"position":"HCA","floor":"Level 3 - 30 Beds","fte":1.0,"line":4,"hours":"","lineType":"D/E","identifier":"Flr3-HCA-1.0-DE-L4","weeks":[["","","E","E","E","E","E"],["","","D","D","D","~",""],["D","D","D","D","D","~",""],["D","D","E","E","E","E","E"],["","","E","E","E","E","E"],["","","E","E","E","E","E"],["","","D","D","D","~",""],["D","D","D","D","D","~",""],["D","D","E","E","E","E","E"],["","","E","E","E","E","E"]]},{"position":"HCA","floor":"Level 3 - 30 Beds","fte":0.8,"line":5,"hours":"","lineType":"D/N","identifier":"Flr3-HCA-0.8-DN-L5","weeks":[["D","D","","","N","N","N"],["","","N","N","N","N","N"],["","","","","N","N","N"],["","","N","N","","~",""],["D","D","D","D","D","~",""],["D","D","","","N","N","N"],["","","N","N","N","N","N"],["","","","","N","N","N"],["","","N","N","","~",""],["D","D","D","D","D","~",""]]},{"position":"HCA","floor":"Level 3 - 30 Beds","fte":0.8,"line":6,"hours":"","lineType":"D/N","identifier":"Flr3-HCA-0.8-DN-L6","weeks":[["","","N","N","","~",""],["D","D","D","D","D","~",""],["D","D","","","N","N","N"],["N","N","","","N","N","N"],["","","","","N","N","N"],["","","N","N","","~",""],["D","D","D","D","D","~",""],["D","D","","","N","N","N"],["N","N","","","N","N","N"],["","","","","N","N","N"]]},{"position":"HCA","floor":"Level 3 - 30 Beds","fte":0.8,"line":7,"hours":"","lineType":"D/N","identifier":"Flr3-HCA-0.8-DN-L7","weeks":[["","","","","N","N","N"],["","","N","N","","~",""],["D","D","D","D","D","~",""],["","","D","D","N","N","N"],["","","N","N","N","N","N"],["","","","","N","N","N"],["","","N","N","","~",""],["D","D","D","D","D","~",""],["","","D","D","N","N","N"],["","","N","N","N","N","N"]]},{"position":"HCA","floor":"Level 3 - 30 Beds","fte":0.8,"line":8,"hours":"","lineType":"D/N","identifier":"Flr3-HCA-0.8-DN-L8","weeks":[["","","D","D","D","D","D"],["","","","","N","N","N"],["N","N","","","","D","D"],["N","N","N","N","","~",""],["N","N","N","N","","~",""],["","","D","D","D","D","D"],["","","","","N","N","N"],["N","N","","","","D","D"],["N","N","N","N","","~",""],["N","N","N","N","","~",""]]},{"position":"HCA","floor":"Level 3 - 30 Beds","fte":0.8,"line":9,"hours":"","lineType":"D/E","identifier":"Flr3-HCA-0.8-DE-L9","weeks":[["","","D","D","","~",""],["D","D","D","D","D","~",""],["E","E","","","E","E","E"],["E","E","","","E","E","E"],["","","","","E","E","E"],["","","D","D","","~",""],["D","D","D","D","D","~",""],["E","E","","","E","E","E"],["E","E","","","E","E","E"],["","","","","E","E","E"]]},{"position":"HCA","floor":"Level 3 - 30 Beds","fte":0.8,"line":10,"hours":"","lineType":"D/E","identifier":"Flr3-HCA-0.8-DE-L10","weeks":[["E","E","","","D","D","D"],["E","E","","","","~",""],["E","E","E","E","","~",""],["E","E","","","D","D","D"],["E","E","","","","D","D"],["E","E","","","D","D","D"],["E","E","","","","~",""],["E","E","E","E","","~",""],["E","E","","","D","D","D"],["E","E","","","","D","D"]]},{"position":"HCA","floor":"Level 3 - 30 Beds","fte":0.6,"line":11,"hours":"","lineType":"D/N","identifier":"Flr3-HCA-0.6-DN-L11","weeks":[["N","N","","","","D","D"],["N","N","","","","~",""],["N","N","N","N","","~",""],["D","D","","","","D","D"],["N","N","","","","~",""],["N","N","N","N","","~",""],["N","N","","","","D","D"],["","","N","N","","~",""],["","","","","","D","D"],["","","","","","D","D"]]},{"position":"HCA","floor":"Level 3 - 30 Beds","fte":0.6,"line":12,"hours":"","lineType":"D/N","identifier":"Flr3-HCA-0.6-DN-L12","weeks":[["N","N","N","N","","~",""],["N","N","","","","D","D"],["","","N","N","","~",""],["","","","","","D","D"],["","","","","","D","D"],["N","N","","","","D","D"],["N","N","","","","~",""],["N","N","N","N","","~",""],["D","D","","","","D","D"],["N","N","","","","~",""]]},{"position":"HCA","floor":"Level 3 - 30 Beds","fte":0.6,"line":13,"hours":"","lineType":"D/E","identifier":"Flr3-HCA-0.6-DE-L13","weeks":[["E","E","","","","~",""],["E","E","","","","D","D"],["E","E","","","","D","D"],["E","E","","","","~",""],["E","E","","","","D","D"],["E","E","","","","~",""],["E","E","","","","D","D"],["","","","","","D","D"],["","","E","E","","~",""],["E","E","E","E","","~",""]]},{"position":"HCA","floor":"Level 3 - 30 Beds","fte":0.6,"line":14,"hours":"","lineType":"D/E","identifier":"Flr3-HCA-0.6-DE-L14","weeks":[["E","E","","","","~",""],["E","E","","","","D","D"],["","","","","","D","D"],["","","E","E","","~",""],["E","E","E","E","","~",""],["E","E","","","","~",""],["E","E","","","","D","D"],["E","E","","","","D","D"],["E","E","","","","~",""],["E","E","","","","D","D"]]},{"position":"HCA","floor":"Level 3 - 30 Beds","fte":1.0,"line":15,"hours":"","lineType":"D/E","identifier":"Flr3-HCA-1.0-DE-L15","weeks":[["D","D","E","E","E","E","E"],["","","E","E","E","E","E"],["","","E","E","E","E","E"],["","","D","D","D","~",""],["D","D","D","D","D","~",""],["D","D","E","E","E","E","E"],["","","E","E","E","E","E"],["","","E","E","E","E","E"],["","","D","D","D","~",""],["D","D","D","D","D","~",""]]},{"position":"HCA","floor":"Level 3 - 30 Beds","fte":1.0,"line":16,"hours":"","lineType":"D/E","identifier":"Flr3-HCA-1.0-DE-L16","weeks":[["D","D","D","D","D","~",""],["D","D","E","E","E","E","E"],["","","E","E","E","E","E"],["","","E","E","E","E","E"],["","","D","D","D","~",""],["D","D","D","D","D","~",""],["D","D","E","E","E","E","E"],["","","E","E","E","E","E"],["","","E","E","E","E","E"],["","","D","D","D","~",""]]},{"position":"HCA","floor":"Level 3 - 30 Beds","fte":1.0,"line":17,"hours":"","lineType":"D/E","identifier":"Flr3-HCA-1.0-DE-L17","weeks":[["","","E","E","E","E","E"],["","","E","E","E","E","E"],["","","D","D","D","~",""],["D","D","D","D","D","~",""],["D","D","E","E","E","E","E"],["","","E","E","E","E","E"],["","","E","E","E","E","E"],["","","D","D","D","~",""],["D","D","D","D","D","~",""],["D","D","E","E","E","E","E"]]},{"position":"HCA","floor":"Level 3 - 30 Beds","fte":1.0,"line":18,"hours":"","lineType":"D/E","identifier":"Flr3-HCA-1.0-DE-L18","weeks":[["","","E","E","E","E","E"],["","","D","D","D","~",""],["D","D","D","D","D","~",""],["D","D","E","E","E","E","E"],["","","E","E","E","E","E"],["","","E","E","E","E","E"],["","","D","D","D","~",""],["D","D","D","D","D","~",""],["D","D","E","E","E","E","E"],["","","E","E","E","E","E"]]},{"position":"HCA","floor":"Level 3 - 30 Beds","fte":0.8,"line":19,"hours":"","lineType":"D/N","identifier":"Flr3-HCA-0.8-DN-L19","weeks":[["D","D","","","N","N","N"],["","","N","N","N","N","N"],["","","","","N","N","N"],["","","N","N","","~",""],["D","D","D","D","D","~",""],["D","D","","","N","N","N"],["","","N","N","N","N","N"],["","","","","N","N","N"],["","","N","N","","~",""],["D","D","D","D","D","~",""]]},{"position":"HCA","floor":"Level 3 - 30 Beds","fte":0.8,"line":20,"hours":"","lineType":"D/N","identifier":"Flr3-HCA-0.8-DN-L20","weeks":[["","","N","N","","~",""],["D","D","D","D","D","~",""],["D","D","","","N","N","N"],["N","N","","","N","N","N"],["","","","","N","N","N"],["","","N","N","","~",""],["D","D","D","D","D","~",""],["D","D","","","N","N","N"],["N","N","","","N","N","N"],["","","","","N","N","N"]]},{"position":"HCA","floor":"Level 3 - 30 Beds","fte":0.8,"line":21,"hours":"","lineType":"D/N","identifier":"Flr3-HCA-0.8-DN-L21","weeks":[["","","","","N","N","N"],["","","N","N","","~",""],["D","D","D","D","D","~",""],["","","D","D","N","N","N"],["","","N","N","N","N","N"],["","","","","N","N","N"],["","","N","N","","~",""],["D","D","D","D","D","~",""],["","","D","D","N","N","N"],["","","N","N","N","N","N"]]},{"position":"HCA","floor":"Level 3 - 30 Beds","fte":0.8,"line":22,"hours":"","lineType":"D/N","identifier":"Flr3-HCA-0.8-DN-L22","weeks":[["","","D","D","D","D","D"],["","","","","N","N","N"],["N","N","","","","D","D"],["N","N","N","N","","~",""],["N","N","N","N","","~",""],["","","D","D","D","D","D"],["","","","","N","N","N"],["N","N","","","","D","D"],["N","N","N","N","","~",""],["N","N","N","N","","~",""]]},{"position":"HCA","floor":"Level 3 - 30 Beds","fte":0.8,"line":23,"hours":"","lineType":"D/E","identifier":"Flr3-HCA-0.8-DE-L23","weeks":[["","","D","D","","~",""],["D","D","D","D","D","~",""],["E","E","","","E","E","E"],["E","E","","","E","E","E"],["","","","","E","E","E"],["","","D","D","","~",""],["D","D","D","D","D","~",""],["E","E","","","E","E","E"],["E","E","","","E","E","E"],["","","","","E","E","E"]]},{"position":"HCA","floor":"Level 3 - 30 Beds","fte":0.8,"line":24,"hours":"","lineType":"D/E","identifier":"Flr3-HCA-0.8-DE-L24","weeks":[["E","E","","","D","D","D"],["E","E","","","","~",""],["E","E","E","E","","~",""],["E","E","","","D","D","D"],["E","E","","","","D","D"],["E","E","","","D","D","D"],["E","E","","","","~",""],["E","E","E","E","","~",""],["E","E","","","D","D","D"],["E","E","","","","D","D"]]},{"position":"HCA","floor":"Level 3 - 30 Beds","fte":0.6,"line":25,"hours":"","lineType":"D/N","identifier":"Flr3-HCA-0.6-DN-L25","weeks":[["N","N","","","","D","D"],["N","N","","","","~",""],["N","N","N","N","","~",""],["D","D","","","","D","D"],["N","N","","","","~",""],["N","N","N","N","","~",""],["N","N","","","","D","D"],["","","N","N","","~",""],["","","","","","D","D"],["","","","","","D","D"]]},{"position":"HCA","floor":"Level 3 - 30 Beds","fte":0.6,"line":26,"hours":"","lineType":"D/N","identifier":"Flr3-HCA-0.6-DN-L26","weeks":[["N","N","N","N","","~",""],["N","N","","","","D","D"],["","","N","N","","~",""],["","","","","","D","D"],["","","","","","D","D"],["N","N","","","","D","D"],["N","N","","","","~",""],["N","N","N","N","","~",""],["D","D","","","","D","D"],["N","N","","","","~",""]]},{"position":"HCA","floor":"Level 3 - 30 Beds","fte":0.6,"line":27,"hours":"","lineType":"D/E","identifier":"Flr3-HCA-0.6-DE-L27","weeks":[["E","E","","","","~",""],["E","E","","","","D","D"],["E","E","","","","D","D"],["E","E","","","","~",""],["E","E","","","","D","D"],["E","E","","","","~",""],["E","E","","","","D","D"],["","","","","","D","D"],["","","E","E","","~",""],["E","E","E","E","","~",""]]},{"position":"HCA","floor":"Level 3 - 30 Beds","fte":0.6,"line":28,"hours":"","lineType":"D/E","identifier":"Flr3-HCA-0.6-DE-L28","weeks":[["E","E","","","","~",""],["E","E","","","","D","D"],["","","","","","D","D"],["","","E","E","","~",""],["E","E","E","E","","~",""],["E","E","","","","~",""],["E","E","","","","D","D"],["E","E","","","","D","D"],["E","E","","","","~",""],["E","E","","","","D","D"]]},{"position":"HCA","floor":"Level 4","fte":1.0,"line":1,"hours":77.5,"lineType":"D/E","identifier":"Flr4-HCA-1.0-DE-L1","weeks":[["D","D","E","E","E","E","E"],["","","E","E","E","E","E"],["","","E","E","E","E","E"],["","","D","D","D","~",""],["D","D","D","D","D","~",""],["D","D","E","E","E","E","E"],["","","E","E","E","E","E"],["","","E","E","E","E","E"],["","","D","D","D","~",""],["D","D","D","D","D","~",""]]},{"position":"HCA","floor":"Level 4","fte":1.0,"line":2,"hours":77.5,"lineType":"D/E","identifier":"Flr4-HCA-1.0-DE-L2","weeks":[["","","D","D","D","~",""],["D","D","D","D","D","~",""],["D","D","E","E","E","E","E"],["","","E","E","E","E","E"],["","","E","E","E","E","E"],["","","D","D","D","~",""],["D","D","D","D","D","~",""],["D","D","E","E","E","E","E"],["","","E","E","E","E","E"],["","","E","E","E","E","E"]]},{"position":"HCA","floor":"Level 4","fte":0.8,"line":3,"hours":62.0,"lineType":"D/N","identifier":"Flr4-HCA-0.8-DN-L3","weeks":[["N","N","","","N","N",""],["","","","N","N","N","N"],["","","N","N","","~",""],["D","D","D","D","D","~",""],["D","D","","","N","N","N"],["N","N","","","N","N",""],["","","","N","N","N","N"],["","","N","N","","~",""],["D","D","D","D","D","~",""],["D","D","","","N","N","N"]]},{"position":"HCA","floor":"Level 4","fte":0.8,"line":4,"hours":62.0,"lineType":"D/N","identifier":"Flr4-HCA-0.8-DN-L4","weeks":[["D","D","N","N","","~",""],["D","D","","","D","D","D"],["N","N","","","N","N",""],["","","N","N","N","N","N"],["","","N","N","","~",""],["D","D","N","N","","~",""],["D","D","","","D","D","D"],["N","N","","","N","N",""],["","","N","N","N","N","N"],["","","N","N","","~",""]]},{"position":"HCA","floor":"Level 4","fte":0.8,"line":5,"hours":62.0,"lineType":"D/E","identifier":"Flr4-HCA-0.8-DE-L5","weeks":[["","","E","E","E","E","E"],["","","E","E","E","E","E"],["","","D","D","D","D","D"],["","","E","E","","~",""],["","","D","D","D","~",""],["","","E","E","E","E","E"],["","","E","E","E","E","E"],["","","D","D","D","D","D"],["","","E","E","","~",""],["","","D","D","D","~",""]]},{"position":"HCA","floor":"Level 4","fte":0.8,"line":6,"hours":62.0,"lineType":"D/E","identifier":"Flr4-HCA-0.8-DE-L6","weeks":[["E","E","","","D","D","D"],["E","E","","","","~",""],["","","D","D","D","~",""],["D","D","","","E","E","E"],["E","E","","","E","E","E"],["E","E","","","D","D","D"],["E","E","","","","~",""],["","","D","D","D","~",""],["D","D","","","E","E","E"],["E","E","","","E","E","E"]]},{"position":"HCA","floor":"Level 4","fte":0.6,"line":7,"hours":46.5,"lineType":"D/E","identifier":"Flr4-HCA-0.6-DE-L7","weeks":[["","","","","","D","D"],["E","E","","","","D","D"],["E","E","","","","~",""],["E","E","","","","D","D"],["","E","E","E","","~",""],["","","","","","D","D"],["E","E","","","","D","D"],["E","E","","","","~",""],["E","E","","","","D","D"],["","E","E","E","","~",""]]},{"position":"HCA","floor":"Level 4","fte":0.6,"line":8,"hours":46.5,"lineType":"D/E","identifier":"Flr4-HCA-0.6-DE-L8","weeks":[["E","E","","","","~",""],["","","D","D","","~",""],["E","E","","","","D","D"],["E","E","","","","D","D"],["E","","","","","D","D"],["E","E","","","","~",""],["","","D","D","","~",""],["E","E","","","","D","D"],["E","E","","","","D","D"],["E","","","","","D","D"]]},{"position":"HCA","floor":"Level 4","fte":0.6,"line":9,"hours":46.5,"lineType":"D/N","identifier":"Flr4-HCA-0.6-DN-L9","weeks":[["","","D","D","","","N"],["N","N","N","","","~",""],["D","D","","","","","N"],["N","N","","","","~",""],["N","N","","","","D","D"],["","","D","D","","","N"],["N","N","N","","","~",""],["D","D","","","","","N"],["N","N","","","","~",""],["N","N","","","","D","D"]]},{"position":"HCA","floor":"Level 4","fte":1.0,"line":10,"hours":77.5,"lineType":"D/E","identifier":"Flr4-HCA-1.0-DE-L10","weeks":[["D","D","E","E","E","E","E"],["","","E","E","E","E","E"],["","","E","E","E","E","E"],["","","D","D","D","~",""],["D","D","D","D","D","~",""],["D","D","E","E","E","E","E"],["","","E","E","E","E","E"],["","","E","E","E","E","E"],["","","D","D","D","~",""],["D","D","D","D","D","~",""]]},{"position":"HCA","floor":"Level 4","fte":1.0,"line":11,"hours":77.5,"lineType":"D/E","identifier":"Flr4-HCA-1.0-DE-L11","weeks":[["","","D","D","D","~",""],["D","D","D","D","D","~",""],["D","D","E","E","E","E","E"],["","","E","E","E","E","E"],["","","E","E","E","E","E"],["","","D","D","D","~",""],["D","D","D","D","D","~",""],["D","D","E","E","E","E","E"],["","","E","E","E","E","E"],["","","E","E","E","E","E"]]},{"position":"HCA","floor":"Level 4","fte":0.8,"line":12,"hours":62.0,"lineType":"D/N","identifier":"Flr4-HCA-0.8-DN-L12","weeks":[["N","N","","","N","N",""],["","","","N","N","N","N"],["","","N","N","","~",""],["D","D","D","D","D","~",""],["D","D","","","N","N","N"],["N","N","","","N","N",""],["","","","N","N","N","N"],["","","N","N","","~",""],["D","D","D","D","D","~",""],["D","D","","","N","N","N"]]},{"position":"HCA","floor":"Level 4","fte":0.8,"line":13,"hours":62.0,"lineType":"D/N","identifier":"Flr4-HCA-0.8-DN-L13","weeks":[["D","D","N","N","","~",""],["D","D","","","D","D","D"],["N","N","","","N","N",""],["","","N","N","N","N","N"],["","","N","N","","~",""],["D","D","N","N","","~",""],["D","D","","","D","D","D"],["N","N","","","N","N",""],["","","N","N","N","N","N"],["","","N","N","","~",""]]},{"position":"HCA","floor":"Level 4","fte":0.8,"line":14,"hours":62.0,"lineType":"D/E","identifier":"Flr4-HCA-0.8-DE-L14","weeks":[["","","E","E","E","E","E"],["","","E","E","E","E","E"],["","","D","D","D","D","D"],["","","E","E","","~",""],["","","D","D","D","~",""],["","","E","E","E","E","E"],["","","E","E","E","E","E"],["","","D","D","D","D","D"],["","","E","E","","~",""],["","","D","D","D","~",""]]},{"position":"HCA","floor":"Level 4","fte":0.8,"line":15,"hours":62.0,"lineType":"D/E","identifier":"Flr4-HCA-0.8-DE-L15","weeks":[["E","E","","","D","D","D"],["E","E","","","","~",""],["","","D","D","D","~",""],["D","D","","","E","E","E"],["E","E","","","E","E","E"],["E","E","","","D","D","D"],["E","E","","","","~",""],["","","D","D","D","~",""],["D","D","","","E","E","E"],["E","E","","","E","E","E"]]},{"position":"HCA","floor":"Level 4","fte":0.6,"line":16,"hours":46.5,"lineType":"D/E","identifier":"Flr4-HCA-0.6-DE-L16","weeks":[["","","","","","D","D"],["E","E","","","","D","D"],["E","E","","","","~",""],["E","E","","","","D","D"],["","E","E","E","","~",""],["","","","","","D","D"],["E","E","","","","D","D"],["E","E","","","","~",""],["E","E","","","","D","D"],["","E","E","E","","~",""]]},{"position":"HCA","floor":"Level 4","fte":0.6,"line":17,"hours":46.5,"lineType":"D/E","identifier":"Flr4-HCA-0.6-DE-L17","weeks":[["E","E","","","","~",""],["","","D","D","","~",""],["E","E","","","","D","D"],["E","E","","","","D","D"],["E","","","","","D","D"],["E","E","","","","~",""],["","","D","D","","~",""],["E","E","","","","D","D"],["E","E","","","","D","D"],["E","","","","","D","D"]]},{"position":"HCA","floor":"Level 4","fte":0.6,"line":18,"hours":46.5,"lineType":"D/N","identifier":"Flr4-HCA-0.6-DN-L18","weeks":[["","","D","D","","","N"],["N","N","N","","","~",""],["D","D","","","","","N"],["N","N","","","","~",""],["N","N","","","","D","D"],["","","D","D","","","N"],["N","N","N","","","~",""],["D","D","","","","","N"],["N","N","","","","~",""],["N","N","","","","D","D"]]},{"position":"HCA","floor":"Level 4","fte":1.0,"line":19,"hours":77.5,"lineType":"D/E","identifier":"Flr4-HCA-1.0-DE-L19","weeks":[["D","D","E","E","E","E","E"],["","","E","E","E","E","E"],["","","E","E","E","E","E"],["","","D","D","D","~",""],["D","D","D","D","D","~",""],["D","D","E","E","E","E","E"],["","","E","E","E","E","E"],["","","E","E","E","E","E"],["","","D","D","D","~",""],["D","D","D","D","D","~",""]]},{"position":"HCA","floor":"Level 4","fte":1.0,"line":20,"hours":77.5,"lineType":"D/E","identifier":"Flr4-HCA-1.0-DE-L20","weeks":[["","","E","E","E","E","E"],["","","D","D","D","~",""],["D","D","D","D","D","~",""],["D","D","D","E","E","E","E"],["","","E","E","E","E","E"],["","","E","E","E","E","E"],["","","D","D","D","~",""],["D","D","D","D","D","~",""],["D","D","D","E","E","E","E"],["","","E","E","E","E","E"]]},{"position":"HCA","floor":"Level 4","fte":1.0,"line":21,"hours":77.5,"lineType":"D/E","identifier":"Flr4-HCA-1.0-DE-L21","weeks":[["D","D","D","D","D","~",""],["D","D","E","E","E","E","E"],["","","E","E","E","E","E"],["","","E","E","E","E","E"],["","","D","D","D","~",""],["D","D","D","D","D","~",""],["D","D","E","E","E","E","E"],["","","E","E","E","E","E"],["","","E","E","E","E","E"],["","","D","D","D","~",""]]},{"position":"HCA","floor":"Level 4","fte":1.0,"line":22,"hours":77.5,"lineType":"D/N","identifier":"Flr4-HCA-1.0-DN-L22","weeks":[["N","N","N","N","","~",""],["D","D","D","D","D","~",""],["DF","DF","DF","DF","N","N","N"],["","","","N","N","N","N"],["N","N","","","N","N","N"],["N","N","N","N","","~",""],["D","D","D","D","D","~",""],["DF","DF","DF","DF","N","N","N"],["","","","N","N","N","N"],["N","N","","","N","N","N"]]},{"position":"HCA","floor":"Level 4","fte":1.0,"line":23,"hours":77.5,"lineType":"D/N","identifier":"Flr4-HCA-1.0-DN-L23","weeks":[["DF","DF","DF","DF","N","N","N"],["","","","N","N","N","N"],["N","N","","","N","N","N"],["N","N","N","N","","~",""],["DF","DF","DF","DF","DF","~",""],["DF","DF","DF","DF","N","N","N"],["","","","N","N","N","N"],["N","N","","","N","N","N"],["N","N","N","N","","~",""],["DF","DF","DF","DF","DF","~",""]]},{"position":"HCA","floor":"Level 4","fte":1.0,"line":24,"hours":77.5,"lineType":"D/N","identifier":"Flr4-HCA-1.0-DN-L24","weeks":[["N","N","N","N","","~",""],["DF","DF","DF","DF","DF","~",""],["D","D","D","D","N","N","N"],["","","","N","N","N","N"],["N","N","","","N","N","N"],["N","N","N","N","","~",""],["DF","DF","DF","DF","DF","~",""],["D","D","D","D","N","N","N"],["","","","N","N","N","N"],["N","N","","","N","N","N"]]},{"position":"HCA","floor":"Level 4","fte":0.8,"line":25,"hours":62.0,"lineType":"D/E","identifier":"Flr4-HCA-0.8-DE-L25","weeks":[["","","D","D","D","D","D"],["","","EF","EF","","~",""],["E","E","","","EF","EF","EF"],["EF","","","D","D","~",""],["E","E","","","EF","EF","EF"],["","","D","D","D","D","D"],["","","EF","EF","","~",""],["E","E","","","EF","EF","EF"],["EF","","","D","D","~",""],["E","E","","","EF","EF","EF"]]},{"position":"HCA","floor":"Level 4","fte":0.8,"line":26,"hours":62.0,"lineType":"D/E","identifier":"Flr4-HCA-0.8-DE-L26","weeks":[["EF","EF","EF","","","~",""],["E","E","","","EF","EF","EF"],["","","EF","EF","","~",""],["D","D","","","DF","DF","DF"],["E","E","E","","","D","D"],["EF","EF","EF","","","~",""],["E","E","","","EF","EF","EF"],["","","EF","EF","","~",""],["D","D","","","DF","DF","DF"],["E","E","E","","","D","D"]]},{"position":"HCA","floor":"Level 4","fte":0.8,"line":27,"hours":62.0,"lineType":"D/E","identifier":"Flr4-HCA-0.8-DE-L27","weeks":[["E","E","","","","~",""],["EF","EF","","","","D","D"],["E","E","","","D","D","D"],["E","E","E","","","D","D"],["EF","EF","EF","EF","","~",""],["E","E","","","","~",""],["EF","EF","","","","D","D"],["E","E","","","D","D","D"],["E","E","E","","","D","D"],["EF","EF","EF","EF","","~",""]]},{"position":"HCA","floor":"Level 4","fte":0.8,"line":28,"hours":62.0,"lineType":"D/N","identifier":"Flr4-HCA-0.8-DN-L28","weeks":[["N","N","","","N","N","N"],["N","N","N","","","~",""],["N","N","N","N","","~",""],["DF","DF","","","","D","D"],["D","D","","","","DF","DF"],["N","N","","","N","N","N"],["N","N","N","","","~",""],["N","N","N","N","","~",""],["DF","DF","","","","D","D"],["D","D","","","","DF","DF"]]},{"position":"HCA","floor":"Level 4","fte":0.8,"line":29,"hours":62.0,"lineType":"E/N","identifier":"Flr4-HCA-0.8-EN-L29","weeks":[["","","N","N","N","N","N"],["","","N","N","","~",""],["N","N","N","N","","~",""],["E","E","","","EF","EF","EF"],["","","","E","E","E","E"],["","","N","N","N","N","N"],["","","N","N","","~",""],["N","N","N","N","","~",""],["E","E","","","EF","EF","EF"],["","","","E","E","E","E"]]},{"position":"HCA","floor":"Level 4","fte":0.8,"line":30,"hours":62.0,"lineType":"E/N","identifier":"Flr4-HCA-0.8-EN-L30","weeks":[["","","","EF","EF","EF","EF"],["","N","N","N","N","N","N"],["","","N","N","","~",""],["N","N","N","","","~",""],["","","N","N","N","N","N"],["","","","EF","EF","EF","EF"],["","N","N","N","N","N","N"],["","","N","N","","~",""],["N","N","N","","","~",""],["","","N","N","N","N","N"]]},{"position":"HCA","floor":"Level 4","fte":0.6,"line":31,"hours":46.5,"lineType":"D/N","identifier":"Flr4-HCA-0.6-DN-L31","weeks":[["","","","","","D","D"],["N","","","","","DF","DF"],["","","","","DF","DF","DF"],["N","N","N","","","~",""],["N","N","N","N","","~",""],["","","","","","D","D"],["N","","","","","DF","DF"],["","","","","DF","DF","DF"],["N","N","N","","","~",""],["N","N","N","N","","~",""]]},{"position":"HCA","floor":"Level 4","fte":0.6,"line":32,"hours":46.5,"lineType":"D/E","identifier":"Flr4-HCA-0.6-DE-L32","weeks":[["E","E","","","","~",""],["E","E","","","","D","D"],["EF","EF","","","","D","D"],["","EF","EF","EF","","~",""],["","","","","","D","D"],["E","E","","","","~",""],["E","E","","","","D","D"],["EF","EF","","","","D","D"],["","EF","EF","EF","","~",""],["","","","","","D","D"]]},{"position":"HCA","floor":"Level 4","fte":0.6,"line":33,"hours":46.5,"lineType":"D/N","identifier":"Flr4-HCA-0.6-DN-L33","weeks":[["","","","","DF","DF","DF"],["N","N","","","N","N","N"],["","","","","","~",""],["","","DF","DF","N","N","N"],["","","N","N","","~",""],["","","","","DF","DF","DF"],["N","N","","","N","N","N"],["","","","","","~",""],["","","DF","DF","N","N","N"],["","","N","N","","~",""]]},{"position":"HCA","floor":"Level 5","fte":1.0,"line":1,"hours":77.5,"lineType":"D/E","identifier":"Flr5-HCA-1.0-DE-L1","weeks":[["D","D","E","E","E","E","E"],["","","E","E","E","E","E"],["","","E","E","E","E","E"],["","","D","D","D","~",""],["D","D","D","D","D","~",""],["D","D","E","E","E","E","E"],["","","E","E","E","E","E"],["","","E","E","E","E","E"],["","","D","D","D","~",""],["D","D","D","D","D","~",""]]},{"position":"HCA","floor":"Level 5","fte":1.0,"line":2,"hours":77.5,"lineType":"D/E","identifier":"Flr5-HCA-1.0-DE-L2","weeks":[["","","D","D","D","~",""],["D","D","D","D","D","~",""],["D","D","E","E","E","E","E"],["","","E","E","E","E","E"],["","","E","E","E","E","E"],["","","D","D","D","~",""],["D","D","D","D","D","~",""],["D","D","E","E","E","E","E"],["","","E","E","E","E","E"],["","","E","E","E","E","E"]]},{"position":"HCA","floor":"Level 5","fte":0.8,"line":3,"hours":62.0,"lineType":"D/N","identifier":"Flr5-HCA-0.8-DN-L3","weeks":[["N","N","","","N","N",""],["","","","N","N","N","N"],["","","N","N","","~",""],["D","D","D","D","D","~",""],["D","D","","","N","N","N"],["N","N","","","N","N",""],["","","","N","N","N","N"],["","","N","N","","~",""],["D","D","D","D","D","~",""],["D","D","","","N","N","N"]]},{"position":"HCA","floor":"Level 5","fte":0.8,"line":4,"hours":62.0,"lineType":"D/N","identifier":"Flr5-HCA-0.8-DN-L4","weeks":[["D","D","N","N","","~",""],["D","D","","","D","D","D"],["N","N","","","N","N",""],["","","N","N","N","N","N"],["","","N","N","","~",""],["D","D","N","N","","~",""],["D","D","","","D","D","D"],["N","N","","","N","N",""],["","","N","N","N","N","N"],["","","N","N","","~",""]]},{"position":"HCA","floor":"Level 5","fte":0.8,"line":5,"hours":62.0,"lineType":"D/E","identifier":"Flr5-HCA-0.8-DE-L5","weeks":[["","","E","E","E","E","E"],["","","E","E","E","E","E"],["","","D","D","D","D","D"],["","","E","E","","~",""],["","","D","D","D","~",""],["","","E","E","E","E","E"],["","","E","E","E","E","E"],["","","D","D","D","D","D"],["","","E","E","","~",""],["","","D","D","D","~",""]]},{"position":"HCA","floor":"Level 5","fte":0.8,"line":6,"hours":62.0,"lineType":"D/E","identifier":"Flr5-HCA-0.8-DE-L6","weeks":[["E","E","","","D","D","D"],["E","E","","","","~",""],["","","D","D","D","~",""],["D","D","","","E","E","E"],["E","E","","","E","E","E"],["E","E","","","D","D","D"],["E","E","","","","~",""],["","","D","D","D","~",""],["D","D","","","E","E","E"],["E","E","","","E","E","E"]]},{"position":"HCA","floor":"Level 5","fte":0.6,"line":7,"hours":46.5,"lineType":"D/E","identifier":"Flr5-HCA-0.6-DE-L7","weeks":[["","","","","","D","D"],["E","E","","","","D","D"],["E","E","","","","~",""],["E","E","","","","D","D"],["","E","E","E","","~",""],["","","","","","D","D"],["E","E","","","","D","D"],["E","E","","","","~",""],["E","E","","","","D","D"],["","E","E","E","","~",""]]},{"position":"HCA","floor":"Level 5","fte":0.6,"line":8,"hours":46.5,"lineType":"D/E","identifier":"Flr5-HCA-0.6-DE-L8","weeks":[["E","E","","","","~",""],["","","D","D","","~",""],["E","E","","","","D","D"],["E","E","","","","D","D"],["E","","","","","D","D"],["E","E","","","","~",""],["","","D","D","","~",""],["E","E","","","","D","D"],["E","E","","","","D","D"],["E","","","","","D","D"]]},{"position":"HCA","floor":"Level 5","fte":0.6,"line":9,"hours":46.5,"lineType":"D/N","identifier":"Flr5-HCA-0.6-DN-L9","weeks":[["","","D","D","","","N"],["N","N","N","","","~",""],["D","D","","","","","N"],["N","N","","","","~",""],["N","N","","","","D","D"],["","","D","D","","","N"],["N","N","N","","","~",""],["D","D","","","","","N"],["N","N","","","","~",""],["N","N","","","","D","D"]]},{"position":"HCA","floor":"Level 5","fte":1.0,"line":10,"hours":77.5,"lineType":"D/E","identifier":"Flr5-HCA-1.0-DE-L10","weeks":[["D","D","E","E","E","E","E"],["","","E","E","E","E","E"],["","","E","E","E","E","E"],["","","D","D","D","~",""],["D","D","D","D","D","~",""],["D","D","E","E","E","E","E"],["","","E","E","E","E","E"],["","","E","E","E","E","E"],["","","D","D","D","~",""],["D","D","D","D","D","~",""]]},{"position":"HCA","floor":"Level 5","fte":1.0,"line":11,"hours":77.5,"lineType":"D/E","identifier":"Flr5-HCA-1.0-DE-L11","weeks":[["","","D","D","D","~",""],["D","D","D","D","D","~",""],["D","D","E","E","E","E","E"],["","","E","E","E","E","E"],["","","E","E","E","E","E"],["","","D","D","D","~",""],["D","D","D","D","D","~",""],["D","D","E","E","E","E","E"],["","","E","E","E","E","E"],["","","E","E","E","E","E"]]},{"position":"HCA","floor":"Level 5","fte":0.8,"line":12,"hours":62.0,"lineType":"D/N","identifier":"Flr5-HCA-0.8-DN-L12","weeks":[["N","N","","","N","N",""],["","","","N","N","N","N"],["","","N","N","","~",""],["D","D","D","D","D","~",""],["D","D","","","N","N","N"],["N","N","","","N","N",""],["","","","N","N","N","N"],["","","N","N","","~",""],["D","D","D","D","D","~",""],["D","D","","","N","N","N"]]},{"position":"HCA","floor":"Level 5","fte":0.8,"line":13,"hours":62.0,"lineType":"D/N","identifier":"Flr5-HCA-0.8-DN-L13","weeks":[["D","D","N","N","","~",""],["D","D","","","D","D","D"],["N","N","","","N","N",""],["","","N","N","N","N","N"],["","","N","N","","~",""],["D","D","N","N","","~",""],["D","D","","","D","D","D"],["N","N","","","N","N",""],["","","N","N","N","N","N"],["","","N","N","","~",""]]},{"position":"HCA","floor":"Level 5","fte":0.8,"line":14,"hours":62.0,"lineType":"D/E","identifier":"Flr5-HCA-0.8-DE-L14","weeks":[["","","E","E","E","E","E"],["","","E","E","E","E","E"],["","","D","D","D","D","D"],["","","E","E","","~",""],["","","D","D","D","~",""],["","","E","E","E","E","E"],["","","E","E","E","E","E"],["","","D","D","D","D","D"],["","","E","E","","~",""],["","","D","D","D","~",""]]},{"position":"HCA","floor":"Level 5","fte":0.8,"line":15,"hours":62.0,"lineType":"D/E","identifier":"Flr5-HCA-0.8-DE-L15","weeks":[["E","E","","","D","D","D"],["E","E","","","","~",""],["","","D","D","D","~",""],["D","D","","","E","E","E"],["E","E","","","E","E","E"],["E","E","","","D","D","D"],["E","E","","","","~",""],["","","D","D","D","~",""],["D","D","","","E","E","E"],["E","E","","","E","E","E"]]},{"position":"HCA","floor":"Level 5","fte":0.6,"line":16,"hours":46.5,"lineType":"D/E","identifier":"Flr5-HCA-0.6-DE-L16","weeks":[["","","","","","D","D"],["E","E","","","","D","D"],["E","E","","","","~",""],["E","E","","","","D","D"],["","E","E","E","","~",""],["","","","","","D","D"],["E","E","","","","D","D"],["E","E","","","","~",""],["E","E","","","","D","D"],["","E","E","E","","~",""]]},{"position":"HCA","floor":"Level 5","fte":0.6,"line":17,"hours":46.5,"lineType":"D/E","identifier":"Flr5-HCA-0.6-DE-L17","weeks":[["E","E","","","","~",""],["","","D","D","","~",""],["E","E","","","","D","D"],["E","E","","","","D","D"],["E","","","","","D","D"],["E","E","","","","~",""],["","","D","D","","~",""],["E","E","","","","D","D"],["E","E","","","","D","D"],["E","","","","","D","D"]]},{"position":"HCA","floor":"Level 5","fte":0.6,"line":18,"hours":46.5,"lineType":"D/N","identifier":"Flr5-HCA-0.6-DN-L18","weeks":[["","","D","D","","","N"],["N","N","N","","","~",""],["D","D","","","","","N"],["N","N","","","","~",""],["N","N","","","","D","D"],["","","D","D","","","N"],["N","N","N","","","~",""],["D","D","","","","","N"],["N","N","","","","~",""],["N","N","","","","D","D"]]},{"position":"HCA","floor":"Level 5","fte":1.0,"line":19,"hours":77.5,"lineType":"D/E","identifier":"Flr5-HCA-1.0-DE-L19","weeks":[["D","D","E","E","E","E","E"],["","","E","E","E","E","E"],["","","E","E","E","E","E"],["","","D","D","D","~",""],["D","D","D","D","D","~",""],["D","D","E","E","E","E","E"],["","","E","E","E","E","E"],["","","E","E","E","E","E"],["","","D","D","D","~",""],["D","D","D","D","D","~",""]]},{"position":"HCA","floor":"Level 5","fte":1.0,"line":20,"hours":77.5,"lineType":"D/E","identifier":"Flr5-HCA-1.0-DE-L20","weeks":[["","","E","E","E","E","E"],["","","D","D","D","~",""],["D","D","D","D","D","~",""],["D","D","D","E","E","E","E"],["","","E","E","E","E","E"],["","","E","E","E","E","E"],["","","D","D","D","~",""],["D","D","D","D","D","~",""],["D","D","D","E","E","E","E"],["","","E","E","E","E","E"]]},{"position":"HCA","floor":"Level 5","fte":1.0,"line":21,"hours":77.5,"lineType":"D/E","identifier":"Flr5-HCA-1.0-DE-L21","weeks":[["D","D","D","D","D","~",""],["D","D","E","E","E","E","E"],["","","E","E","E","E","E"],["","","E","E","E","E","E"],["","","D","D","D","~",""],["D","D","D","D","D","~",""],["D","D","E","E","E","E","E"],["","","E","E","E","E","E"],["","","E","E","E","E","E"],["","","D","D","D","~",""]]},{"position":"HCA","floor":"Level 5","fte":1.0,"line":22,"hours":77.5,"lineType":"D/N","identifier":"Flr5-HCA-1.0-DN-L22","weeks":[["N","N","N","N","","~",""],["D","D","D","D","D","~",""],["DF","DF","DF","DF","N","N","N"],["","","","N","N","N","N"],["N","N","","","N","N","N"],["N","N","N","N","","~",""],["D","D","D","D","D","~",""],["DF","DF","DF","DF","N","N","N"],["","","","N","N","N","N"],["N","N","","","N","N","N"]]},{"position":"HCA","floor":"Level 5","fte":1.0,"line":23,"hours":77.5,"lineType":"D/N","identifier":"Flr5-HCA-1.0-DN-L23","weeks":[["DF","DF","DF","DF","N","N","N"],["","","","N","N","N","N"],["N","N","","","N","N","N"],["N","N","N","N","","~",""],["DF","DF","DF","DF","DF","~",""],["DF","DF","DF","DF","N","N","N"],["","","","N","N","N","N"],["N","N","","","N","N","N"],["N","N","N","N","","~",""],["DF","DF","DF","DF","DF","~",""]]},{"position":"HCA","floor":"Level 5","fte":1.0,"line":24,"hours":77.5,"lineType":"D/N","identifier":"Flr5-HCA-1.0-DN-L24","weeks":[["N","N","N","N","","~",""],["DF","DF","DF","DF","DF","~",""],["D","D","D","D","N","N","N"],["","","","N","N","N","N"],["N","N","","","N","N","N"],["N","N","N","N","","~",""],["DF","DF","DF","DF","DF","~",""],["D","D","D","D","N","N","N"],["","","","N","N","N","N"],["N","N","","","N","N","N"]]},{"position":"HCA","floor":"Level 5","fte":0.8,"line":25,"hours":62.0,"lineType":"D/E","identifier":"Flr5-HCA-0.8-DE-L25","weeks":[["","","D","D","D","D","D"],["","","EF","EF","","~",""],["E","E","","","EF","EF","EF"],["EF","","","D","D","~",""],["E","E","","","EF","EF","EF"],["","","D","D","D","D","D"],["","","EF","EF","","~",""],["E","E","","","EF","EF","EF"],["EF","","","D","D","~",""],["E","E","","","EF","EF","EF"]]},{"position":"HCA","floor":"Level 5","fte":0.8,"line":26,"hours":62.0,"lineType":"D/E","identifier":"Flr5-HCA-0.8-DE-L26","weeks":[["EF","EF","EF","","","~",""],["E","E","","","EF","EF","EF"],["","","EF","EF","","~",""],["D","D","","","DF","DF","DF"],["E","E","E","","","D","D"],["EF","EF","EF","","","~",""],["E","E","","","EF","EF","EF"],["","","EF","EF","","~",""],["D","D","","","DF","DF","DF"],["E","E","E","","","D","D"]]},{"position":"HCA","floor":"Level 5","fte":0.8,"line":27,"hours":62.0,"lineType":"D/E","identifier":"Flr5-HCA-0.8-DE-L27","weeks":[["E","E","","","","~",""],["EF","EF","","","","D","D"],["E","E","","","D","D","D"],["E","E","E","","","D","D"],["EF","EF","EF","EF","","~",""],["E","E","","","","~",""],["EF","EF","","","","D","D"],["E","E","","","D","D","D"],["E","E","E","","","D","D"],["EF","EF","EF","EF","","~",""]]},{"position":"HCA","floor":"Level 5","fte":0.8,"line":28,"hours":62.0,"lineType":"D/N","identifier":"Flr5-HCA-0.8-DN-L28","weeks":[["N","N","","","N","N","N"],["N","N","N","","","~",""],["N","N","N","N","","~",""],["DF","DF","","","","D","D"],["D","D","","","","DF","DF"],["N","N","","","N","N","N"],["N","N","N","","","~",""],["N","N","N","N","","~",""],["DF","DF","","","","D","D"],["D","D","","","","DF","DF"]]},{"position":"HCA","floor":"Level 5","fte":0.8,"line":29,"hours":62.0,"lineType":"E/N","identifier":"Flr5-HCA-0.8-EN-L29","weeks":[["","","N","N","N","N","N"],["","","N","N","","~",""],["N","N","N","N","","~",""],["E","E","","","EF","EF","EF"],["","","","E","E","E","E"],["","","N","N","N","N","N"],["","","N","N","","~",""],["N","N","N","N","","~",""],["E","E","","","EF","EF","EF"],["","","","E","E","E","E"]]},{"position":"HCA","floor":"Level 5","fte":0.8,"line":30,"hours":62.0,"lineType":"E/N","identifier":"Flr5-HCA-0.8-EN-L30","weeks":[["","","","EF","EF","EF","EF"],["","N","N","N","N","N","N"],["","","N","N","","~",""],["N","N","N","","","~",""],["","","N","N","N","N","N"],["","","","EF","EF","EF","EF"],["","N","N","N","N","N","N"],["","","N","N","","~",""],["N","N","N","","","~",""],["","","N","N","N","N","N"]]},{"position":"HCA","floor":"Level 5","fte":0.6,"line":31,"hours":46.5,"lineType":"D/N","identifier":"Flr5-HCA-0.6-DN-L31","weeks":[["","","","","","D","D"],["N","","","","","DF","DF"],["","","","","DF","DF","DF"],["N","N","N","","","~",""],["N","N","N","N","","~",""],["","","","","","D","D"],["N","","","","","DF","DF"],["","","","","DF","DF","DF"],["N","N","N","","","~",""],["N","N","N","N","","~",""]]},{"position":"HCA","floor":"Level 5","fte":0.6,"line":32,"hours":46.5,"lineType":"D/E","identifier":"Flr5-HCA-0.6-DE-L32","weeks":[["E","E","","","","~",""],["E","E","","","","D","D"],["EF","EF","","","","D","D"],["","EF","EF","EF","","~",""],["","","","","","D","D"],["E","E","","","","~",""],["E","E","","","","D","D"],["EF","EF","","","","D","D"],["","EF","EF","EF","","~",""],["","","","","","D","D"]]},{"position":"HCA","floor":"Level 5","fte":0.6,"line":33,"hours":46.5,"lineType":"D/N","identifier":"Flr5-HCA-0.6-DN-L33","weeks":[["","","","","DF","DF","DF"],["N","N","","","N","N","N"],["","","","","","~",""],["","","DF","DF","N","N","N"],["","","N","N","","~",""],["","","","","DF","DF","DF"],["N","N","","","N","N","N"],["","","","","","~",""],["","","DF","DF","N","N","N"],["","","N","N","","~",""]]},{"position":"LPN","floor":"Level 2","fte":1.0,"line":1,"hours":77.5,"lineType":"D/E","identifier":"Flr2-LPN-1.0-DE-L1","weeks":[["D","D","E","E","E","E","E"],["","","E","E","E","E","E"],["","","E","E","E","E","E"],["","","D","D","D","~",""],["D","D","D","D","D","~",""],["D","D","E","E","E","E","E"],["","","E","E","E","E","E"],["","","E","E","E","E","E"],["","","D","D","D","~",""],["D","D","D","D","D","~",""]]},{"position":"LPN","floor":"Level 2","fte":1.0,"line":2,"hours":77.5,"lineType":"D/E","identifier":"Flr2-LPN-1.0-DE-L2","weeks":[["","","D","D","D","~",""],["D","D","D","D","D","~",""],["D","D","E","E","E","E","E"],["","","E","E","E","E","E"],["","","E","E","E","E","E"],["","","D","D","D","~",""],["D","D","D","D","D","~",""],["D","D","E","E","E","E","E"],["","","E","E","E","E","E"],["","","E","E","E","E","E"]]},{"position":"LPN","floor":"Level 2","fte":0.8,"line":3,"hours":62.0,"lineType":"D/N","identifier":"Flr2-LPN-0.8-DN-L3","weeks":[["N","N","","","N","N",""],["","","","N","N","N","N"],["","","N","N","","~",""],["D","D","D","D","D","~",""],["D","D","","","N","N","N"],["N","N","","","N","N",""],["","","","N","N","N","N"],["","","N","N","","~",""],["D","D","D","D","D","~",""],["D","D","","","N","N","N"]]},{"position":"LPN","floor":"Level 2","fte":0.8,"line":4,"hours":62.0,"lineType":"D/N","identifier":"Flr2-LPN-0.8-DN-L4","weeks":[["D","D","N","N","","~",""],["D","D","","","D","D","D"],["N","N","","","N","N",""],["","","N","N","N","N","N"],["","","N","N","","~",""],["D","D","N","N","","~",""],["D","D","","","D","D","D"],["N","N","","","N","N",""],["","","N","N","N","N","N"],["","","N","N","","~",""]]},{"position":"LPN","floor":"Level 2","fte":0.8,"line":5,"hours":62.0,"lineType":"D/E","identifier":"Flr2-LPN-0.8-DE-L5","weeks":[["","","E","E","E","E","E"],["","","E","E","E","E","E"],["","","D","D","D","D","D"],["","","E","E","","~",""],["","","D","D","D","~",""],["","","E","E","E","E","E"],["","","E","E","E","E","E"],["","","D","D","D","D","D"],["","","E","E","","~",""],["","","D","D","D","~",""]]},{"position":"LPN","floor":"Level 2","fte":0.8,"line":6,"hours":62.0,"lineType":"D/E","identifier":"Flr2-LPN-0.8-DE-L6","weeks":[["E","E","","","D","D","D"],["E","E","","","","~",""],["","","D","D","D","~",""],["D","D","","","E","E","E"],["E","E","","","E","E","E"],["E","E","","","D","D","D"],["E","E","","","","~",""],["","","D","D","D","~",""],["D","D","","","E","E","E"],["E","E","","","E","E","E"]]},{"position":"LPN","floor":"Level 2","fte":0.6,"line":7,"hours":46.5,"lineType":"D/E","identifier":"Flr2-LPN-0.6-DE-L7","weeks":[["","","","","","D","D"],["E","E","","","","D","D"],["E","E","","","","~",""],["E","E","","","","D","D"],["","E","E","E","","~",""],["","","","","","D","D"],["E","E","","","","D","D"],["E","E","","","","~",""],["E","E","","","","D","D"],["","E","E","E","","~",""]]},{"position":"LPN","floor":"Level 2","fte":0.6,"line":8,"hours":46.5,"lineType":"D/E","identifier":"Flr2-LPN-0.6-DE-L8","weeks":[["E","E","","","","~",""],["","","D","D","","~",""],["E","E","","","","D","D"],["E","E","","","","D","D"],["E","","","","","D","D"],["E","E","","","","~",""],["","","D","D","","~",""],["E","E","","","","D","D"],["E","E","","","","D","D"],["E","","","","","D","D"]]},{"position":"LPN","floor":"Level 2","fte":0.6,"line":9,"hours":46.5,"lineType":"D/N","identifier":"Flr2-LPN-0.6-DN-L9","weeks":[["","","D","D","","","N"],["N","N","N","","","~",""],["D","D","","","","","N"],["N","N","","","","~",""],["N","N","","","","D","D"],["","","D","D","","","N"],["N","N","N","","","~",""],["D","D","","","","","N"],["N","N","","","","~",""],["N","N","","","","D","D"]]},{"position":"LPN","floor":"Level 3 - 15 Beds","fte":1.0,"line":1,"hours":77.5,"lineType":"D/E","identifier":"Flr3-LPN-1.0-DE-L1","weeks":[["D","D","E","E","E","E",""],["","E","E","E","E","E","E"],["","","D","D","D","D","D"],["","","D","D","D","~",""],["D","D","D","D","D","~",""],["D","D","E","E","E","E",""],["","E","E","E","E","E","E"],["","","D","D","D","D","D"],["","","D","D","D","~",""],["D","D","D","D","D","~",""]]},{"position":"LPN","floor":"Level 3 - 15 Beds","fte":0.6,"line":2,"hours":46.5,"lineType":"D/E","identifier":"Flr3-LPN-0.6-DE-L2","weeks":[["","","","","D","D","D"],["","","D","D","","~",""],["D","D","","","E","E","E"],["","","E","E","","~",""],["","","","E","E","E",""],["","","","","D","D","D"],["","","D","D","","~",""],["D","D","","","E","E","E"],["","","E","E","","~",""],["","","","E","E","E",""]]},{"position":"LPN","floor":"Level 3 - 15 Beds","fte":0.6,"line":3,"hours":46.5,"lineType":"D/E","identifier":"Flr3-LPN-0.6-DE-L3","weeks":[["","","D","D","","","E"],["E","","","","","~",""],["E","E","","","","~",""],["E","E","","","","D","D"],["E","E","E","","","D","D"],["","","D","D","","","E"],["E","","","","","~",""],["E","E","","","","~",""],["E","E","","","","D","D"],["E","E","E","","","D","D"]]},{"position":"LPN","floor":"Level 3 - 15 Beds","fte":0.6,"line":4,"hours":46.5,"lineType":"D/E","identifier":"Flr3-LPN-0.6-DE-L4","weeks":[["E","E","","","","~",""],["D","D","","","D","D","D"],["","","E","E","","~",""],["D","D","","","E","E","E"],["","","","","","","E"],["E","E","","","","~",""],["D","D","","","D","D","D"],["","","E","E","","~",""],["D","D","","","E","E","E"],["","","","","","","E"]]},{"position":"LPN","floor":"Level 3 - 30 Beds","fte":1.0,"line":1,"hours":77.5,"lineType":"D/E","identifier":"Flr3-LPN-1.0-DE-L1","weeks":[["D","D","E","E","E","E","E"],["","","E","E","E","E","E"],["","","E","E","E","E","E"],["","","D","D","D","~",""],["D","D","D","D","D","~",""],["D","D","E","E","E","E","E"],["","","E","E","E","E","E"],["","","E","E","E","E","E"],["","","D","D","D","~",""],["D","D","D","D","D","~",""]]},{"position":"LPN","floor":"Level 3 - 30 Beds","fte":1.0,"line":2,"hours":77.5,"lineType":"D/E","identifier":"Flr3-LPN-1.0-DE-L2","weeks":[["N","N","N","N","","~",""],["D","D","D","D","D","~",""],["D","D","D","D","N","N","N"],["","","N","N","N","N","N"],["N","","","","N","N","N"],["N","N","N","N","","~",""],["D","D","D","D","D","~",""],["D","D","D","D","N","N","N"],["","","N","N","N","N","N"],["N","","","","N","N","N"]]},{"position":"LPN","floor":"Level 3 - 30 Beds","fte":0.8,"line":3,"hours":62.0,"lineType":"E/N","identifier":"Flr3-LPN-0.8-EN-L3","weeks":[["E","E","","","N","N","N"],["N","N","","","","~",""],["N","N","N","N","","~",""],["E","E","","","E","E","E"],["","","","E","E","E","E"],["E","E","","","N","N","N"],["N","N","","","","~",""],["N","N","N","N","","~",""],["E","E","","","E","E","E"],["","","","E","E","E","E"]]},{"position":"LPN","floor":"Level 3 - 30 Beds","fte":0.7,"line":4,"hours":54.25,"lineType":"D/N","identifier":"Flr3-LPN-0.7-DN-L4","weeks":[["","","D","D","","~",""],["","","N","N","N","N","N"],["","","","","D","D","D"],["N","N","","","","D","D"],["","N","N","N","","~",""],["","","D","D","D","~",""],["","","N","N","N","N","N"],["","","","","D","D","D"],["N","N","","","","D","D"],["","N","N","N","","~",""]]},{"position":"LPN","floor":"Level 3 - 30 Beds","fte":0.7,"line":5,"hours":54.25,"lineType":"D/E","identifier":"Flr3-LPN-0.7-DE-L5","weeks":[["","","","","D","D","D"],["E","E","","","","D","D"],["E","E","","","","~",""],["D","D","E","E","","~",""],["E","E","E","","","D","D"],["","","","","","D","D"],["E","E","","","","D","D"],["E","E","","","","~",""],["D","D","E","E","","~",""],["E","E","E","","","D","D"]]},{"position":"LPN","floor":"Level 4","fte":1.0,"line":1,"hours":77.5,"lineType":"D/E","identifier":"Flr4-LPN-1.0-DE-L1","weeks":[["D","D","E","E","E","E","E"],["","","E","E","E","E","E"],["","","E","E","E","E","E"],["","","D","D","D","~",""],["D","D","D","D","D","~",""],["D","D","E","E","E","E","E"],["","","E","E","E","E","E"],["","","E","E","E","E","E"],["","","D","D","D","~",""],["D","D","D","D","D","~",""]]},{"position":"LPN","floor":"Level 4","fte":1.0,"line":2,"hours":77.5,"lineType":"D/E","identifier":"Flr4-LPN-1.0-DE-L2","weeks":[["","","D","D","D","~",""],["D","D","D","D","D","~",""],["D","D","E","E","E","E","E"],["","","E","E","E","E","E"],["","","E","E","E","E","E"],["","","D","D","D","~",""],["D","D","D","D","D","~",""],["D","D","E","E","E","E","E"],["","","E","E","E","E","E"],["","","E","E","E","E","E"]]},{"position":"LPN","floor":"Level 4","fte":0.8,"line":3,"hours":62.0,"lineType":"D/N","identifier":"Flr4-LPN-0.8-DN-L3","weeks":[["N","N","","","N","N",""],["","","","N","N","N","N"],["","","N","N","","~",""],["D","D","D","D","D","~",""],["D","D","","","N","N","N"],["N","N","","","N","N",""],["","","","N","N","N","N"],["","","N","N","","~",""],["D","D","D","D","D","~",""],["D","D","","","N","N","N"]]},{"position":"LPN","floor":"Level 4","fte":0.8,"line":4,"hours":62.0,"lineType":"D/N","identifier":"Flr4-LPN-0.8-DN-L4","weeks":[["D","D","N","N","","~",""],["D","D","","","D","D","D"],["N","N","","","N","N",""],["","","N","N","N","N","N"],["","","N","N","","~",""],["D","D","N","N","","~",""],["D","D","","","D","D","D"],["N","N","","","N","N",""],["","","N","N","N","N","N"],["","","N","N","","~",""]]},{"position":"LPN","floor":"Level 4","fte":0.8,"line":5,"hours":62.0,"lineType":"D/E","identifier":"Flr4-LPN-0.8-DE-L5","weeks":[["","","E","E","E","E","E"],["","","E","E","E","E","E"],["","","D","D","D","D","D"],["","","E","E","","~",""],["","","D","D","D","~",""],["","","E","E","E","E","E"],["","","E","E","E","E","E"],["","","D","D","D","D","D"],["","","E","E","","~",""],["","","D","D","D","~",""]]},{"position":"LPN","floor":"Level 4","fte":0.8,"line":6,"hours":62.0,"lineType":"D/E","identifier":"Flr4-LPN-0.8-DE-L6","weeks":[["E","E","","","D","D","D"],["E","E","","","","~",""],["","","D","D","D","~",""],["D","D","","","E","E","E"],["E","E","","","E","E","E"],["E","E","","","D","D","D"],["E","E","","","","~",""],["","","D","D","D","~",""],["D","D","","","E","E","E"],["E","E","","","E","E","E"]]},{"position":"LPN","floor":"Level 4","fte":0.6,"line":7,"hours":46.5,"lineType":"D/E","identifier":"Flr4-LPN-0.6-DE-L7","weeks":[["","","","","","D","D"],["E","E","","","","D","D"],["E","E","","","","~",""],["E","E","","","","D","D"],["","E","E","E","","~",""],["","","","","","D","D"],["E","E","","","","D","D"],["E","E","","","","~",""],["E","E","","","","D","D"],["","E","E","E","","~",""]]},{"position":"LPN","floor":"Level 4","fte":0.6,"line":8,"hours":46.5,"lineType":"D/E","identifier":"Flr4-LPN-0.6-DE-L8","weeks":[["E","E","","","","~",""],["","","D","D","","~",""],["E","E","","","","D","D"],["E","E","","","","D","D"],["E","","","","","D","D"],["E","E","","","","~",""],["","","D","D","","~",""],["E","E","","","","D","D"],["E","E","","","","D","D"],["E","","","","","D","D"]]},{"position":"LPN","floor":"Level 4","fte":0.6,"line":9,"hours":46.5,"lineType":"D/N","identifier":"Flr4-LPN-0.6-DN-L9","weeks":[["","","D","D","","","N"],["N","N","N","","","~",""],["D","D","","","","","N"],["N","N","","","","~",""],["N","N","","","","D","D"],["","","D","D","","","N"],["N","N","N","","","~",""],["D","D","","","","","N"],["N","N","","","","~",""],["N","N","","","","D","D"]]},{"position":"LPN","floor":"Level 5","fte":1.0,"line":1,"hours":77.5,"lineType":"D/E","identifier":"Flr5-LPN-1.0-DE-L1","weeks":[["D","D","E","E","E","E","E"],["","","E","E","E","E","E"],["","","E","E","E","E","E"],["","","D","D","D","~",""],["D","D","D","D","D","~",""],["D","D","E","E","E","E","E"],["","","E","E","E","E","E"],["","","E","E","E","E","E"],["","","D","D","D","~",""],["D","D","D","D","D","~",""]]},{"position":"LPN","floor":"Level 5","fte":1.0,"line":2,"hours":77.5,"lineType":"D/E","identifier":"Flr5-LPN-1.0-DE-L2","weeks":[["","","D","D","D","~",""],["D","D","D","D","D","~",""],["D","D","E","E","E","E","E"],["","","E","E","E","E","E"],["","","E","E","E","E","E"],["","","D","D","D","~",""],["D","D","D","D","D","~",""],["D","D","E","E","E","E","E"],["","","E","E","E","E","E"],["","","E","E","E","E","E"]]},{"position":"LPN","floor":"Level 5","fte":0.8,"line":3,"hours":62.0,"lineType":"D/N","identifier":"Flr5-LPN-0.8-DN-L3","weeks":[["N","N","","","N","N",""],["","","","N","N","N","N"],["","","N","N","","~",""],["D","D","D","D","D","~",""],["D","D","","","N","N","N"],["N","N","","","N","N",""],["","","","N","N","N","N"],["","","N","N","","~",""],["D","D","D","D","D","~",""],["D","D","","","N","N","N"]]},{"position":"LPN","floor":"Level 5","fte":0.8,"line":4,"hours":62.0,"lineType":"D/N","identifier":"Flr5-LPN-0.8-DN-L4","weeks":[["D","D","N","N","","~",""],["D","D","","","D","D","D"],["N","N","","","N","N",""],["","","N","N","N","N","N"],["","","N","N","","~",""],["D","D","N","N","","~",""],["D","D","","","D","D","D"],["N","N","","","N","N",""],["","","N","N","N","N","N"],["","","N","N","","~",""]]},{"position":"LPN","floor":"Level 5","fte":0.8,"line":5,"hours":62.0,"lineType":"D/E","identifier":"Flr5-LPN-0.8-DE-L5","weeks":[["","","E","E","E","E","E"],["","","E","E","E","E","E"],["","","D","D","D","D","D"],["","","E","E","","~",""],["","","D","D","D","~",""],["","","E","E","E","E","E"],["","","E","E","E","E","E"],["","","D","D","D","D","D"],["","","E","E","","~",""],["","","D","D","D","~",""]]},{"position":"LPN","floor":"Level 5","fte":0.8,"line":6,"hours":62.0,"lineType":"D/E","identifier":"Flr5-LPN-0.8-DE-L6","weeks":[["E","E","","","D","D","D"],["E","E","","","","~",""],["","","D","D","D","~",""],["D","D","","","E","E","E"],["E","E","","","E","E","E"],["E","E","","","D","D","D"],["E","E","","","","~",""],["","","D","D","D","~",""],["D","D","","","E","E","E"],["E","E","","","E","E","E"]]},{"position":"LPN","floor":"Level 5","fte":0.6,"line":7,"hours":46.5,"lineType":"D/E","identifier":"Flr5-LPN-0.6-DE-L7","weeks":[["","","","","","D","D"],["E","E","","","","D","D"],["E","E","","","","~",""],["E","E","","","","D","D"],["","E","E","E","","~",""],["","","","","","D","D"],["E","E","","","","D","D"],["E","E","","","","~",""],["E","E","","","","D","D"],["","E","E","E","","~",""]]},{"position":"LPN","floor":"Level 5","fte":0.6,"line":8,"hours":46.5,"lineType":"D/E","identifier":"Flr5-LPN-0.6-DE-L8","weeks":[["E","E","","","","~",""],["","","D","D","","~",""],["E","E","","","","D","D"],["E","E","","","","D","D"],["E","","","","","D","D"],["E","E","","","","~",""],["","","D","D","","~",""],["E","E","","","","D","D"],["E","E","","","","D","D"],["E","","","","","D","D"]]},{"position":"LPN","floor":"Level 5","fte":0.6,"line":9,"hours":46.5,"lineType":"D/N","identifier":"Flr5-LPN-0.6-DN-L9","weeks":[["","","D","D","","","N"],["N","N","N","","","~",""],["D","D","","","","","N"],["N","N","","","","~",""],["N","N","","","","D","D"],["","","D","D","","","N"],["N","N","N","","","~",""],["D","D","","","","","N"],["N","N","","","","~",""],["N","N","","","","D","D"]]},{"position":"RN","floor":"Level 2","fte":1.0,"line":1,"hours":77.5,"lineType":"D/N","identifier":"Flr2-RN-1.0-DN-L1","weeks":[["D","D","D","D","D","~",""],["D","D","D","","N","N","N"],["N","N","","","N","N","N"],["N","N","N","N","","~",""]]},{"position":"RN","floor":"Level 2","fte":0.8,"line":2,"hours":62.0,"lineType":"D/N","identifier":"Flr2-RN-0.8-DN-L2","weeks":[["N","N","","x","x","D","D"],["","","","D","D","~x","x"],["D","D","N","N","","~x","x"],["D","D","D","x","xN","N","N"]]},{"position":"RN","floor":"Level 2","fte":0.8,"line":3,"hours":62.0,"lineType":"E","identifier":"Flr2-RN-0.8-E-L3","weeks":[["E","E","x","x","E","E","E"],["E","E","x","x","E","E","E"],["","","E","E","","~x","x"],["E","E","E","E","","~x","x"]]},{"position":"RN","floor":"Level 2","fte":0.6,"line":4,"hours":46.5,"lineType":"D/N","identifier":"Flr2-RN-0.6-DN-L4","weeks":[["","","","x","xN","N","N"],["","","N","N","","~x","x"],["x","x","D","D","D","D","D"],["","","","D","D","~x","x"]]},{"position":"RN","floor":"Level 2","fte":0.6,"line":5,"hours":46.5,"lineType":"E","identifier":"Flr2-RN-0.6-E-L5","weeks":[["","","E","E","","~x","x"],["","","E","E","","~x","x"],["E","E","x","x","E","E","E"],["","","x","x","E","E","E"]]},{"position":"RN","floor":"Level 2","fte":0.4,"line":6,"hours":31.0,"lineType":"D/N","identifier":"Flr2-RN-0.4-DN-L6","weeks":[["","","N","N","","~x","x"],["N","N","","x","x","D","D"],["","","","","","~x","x"],["","","x","x","","D","D"]]},{"position":"RN","floor":"Level 3 - 15 Beds","fte":1.0,"line":1,"hours":77.5,"lineType":"D/E","identifier":"Flr3-RN-1.0-DE-L1","weeks":[["D","D","D","D","D","~",""],["D","D","E","E","E","E","E"],["","","E","E","E","E","E"],["","","D","D","D","~",""]]},{"position":"RN","floor":"Level 3 - 15 Beds","fte":0.7,"line":2,"hours":54.25,"lineType":"D/E","identifier":"Flr3-RN-0.7-DE-L2","weeks":[["","","E","E","","~",""],["E","E","","","D","D","D"],["E","E","","","D","D","D"],["","","E","E","","~",""]]},{"position":"RN","floor":"Level 3 - 15 Beds","fte":0.7,"line":3,"hours":54.25,"lineType":"D/N","identifier":"Flr3-RN-0.7-DN-L3","weeks":[["","","","","","D","D"],["N","N","N","N","","~",""],["","","D","D","","~",""],["D","D","","N","N","N","N"]]},{"position":"RN","floor":"Level 3 - 15 Beds","fte":0.7,"line":4,"hours":54.25,"lineType":"D/N","identifier":"Flr3-RN-0.7-DN-L4","weeks":[["N","N","N","N","","~",""],["","","D","D","","~",""],["D","D","","N","N","N","N"],["","","","","","D","D"]]},{"position":"RN","floor":"Level 3 - 15 Beds","fte":0.55,"line":5,"hours":42.625,"lineType":"E/N","identifier":"Flr3-RN-0.6-EN-L5","weeks":[["E","E","","","E","E","E"],["","","","","N","N","N"],["","","","","","~",""],["N","N","N","","","~",""]]},{"position":"RN","floor":"Level 3 - 15 Beds","fte":0.55,"line":6,"hours":42.625,"lineType":"E/N","identifier":"Flr3-RN-0.6-EN-L6","weeks":[["","","","","N","N","N"],["","","","","","~",""],["N","N","N","","","~",""],["E","E","","","E","E","E"]]},{"position":"RN","floor":"Level 3 - 30 Beds","fte":1.0,"line":1,"hours":77.5,"lineType":"D/E","identifier":"Flr3-RN-1.0-DE-L1","weeks":[["D","D","D","D","D","~",""],["D","D","E","E","E","E","E"],["","","E","E","E","E","E"],["","","D","D","D","~",""]]},{"position":"RN","floor":"Level 3 - 30 Beds","fte":0.7,"line":2,"hours":54.25,"lineType":"D/E","identifier":"Flr3-RN-0.7-DE-L2","weeks":[["","","E","E","","~",""],["E","E","","","D","D","D"],["E","E","","","D","D","D"],["","","E","E","","~",""]]},{"position":"RN","floor":"Level 3 - 30 Beds","fte":0.7,"line":3,"hours":54.25,"lineType":"D/N","identifier":"Flr3-RN-0.7-DN-L3","weeks":[["","","","","","D","D"],["N","N","N","N","","~",""],["","","D","D","","~",""],["D","D","","N","N","N","N"]]},{"position":"RN","floor":"Level 3 - 30 Beds","fte":0.7,"line":4,"hours":54.25,"lineType":"D/N","identifier":"Flr3-RN-0.7-DN-L4","weeks":[["N","N","N","N","","~",""],["","","D","D","","~",""],["D","D","","N","N","N","N"],["","","","","","D","D"]]},{"position":"RN","floor":"Level 3 - 30 Beds","fte":0.55,"line":5,"hours":42.625,"lineType":"E/N","identifier":"Flr3-RN-0.6-EN-L5","weeks":[["E","E","","","E","E","E"],["","","","","N","N","N"],["","","","","","~",""],["N","N","N","","","~",""]]},{"position":"RN","floor":"Level 3 - 30 Beds","fte":0.55,"line":6,"hours":42.625,"lineType":"E/N","identifier":"Flr3-RN-0.6-EN-L6","weeks":[["","","","","N","N","N"],["","","","","","~",""],["N","N","N","","","~",""],["E","E","","","E","E","E"]]},{"position":"RN","floor":"Level 4","fte":1.0,"line":1,"hours":77.5,"lineType":"D","identifier":"Flr4-RN-1.0-D-L1","weeks":[["D","D","D","D","D","D","D"],["","","D","D","D","D","D"],["","","D","D","D","~",""],["D","D","D","D","D","~",""]]},{"position":"RN","floor":"Level 4","fte":1.0,"line":2,"hours":77.5,"lineType":"N","identifier":"Flr4-RN-1.0-N-L2","weeks":[["N","N","N","N","","~","N"],["N","N","","","N","N","N"],["N","N","","","N","N","N"],["N","N","N","N","","~","N"]]},{"position":"RN","floor":"Level 4","fte":0.8,"line":3,"hours":62.0,"lineType":"E","identifier":"Flr4-RN-0.8-E-L3","weeks":[["E","E","x","x","E","E","E"],["x","x","E","E","E","E","E"],["","","E","E","","~x","x"],["","E","E","E","E","~x","x"]]},{"position":"RN","floor":"Level 4","fte":0.5,"line":4,"hours":38.75,"lineType":"D/E","identifier":"Flr4-RN-0.5-DE-L4","weeks":[["","","","","","~x","x"],["E","E","","","","~x","x"],["D","D","x","x","E","E","E"],["E","x","x","","","D","D"]]},{"position":"RN","floor":"Level 4","fte":0.5,"line":5,"hours":38.75,"lineType":"D/E","identifier":"Flr4-RN-0.5-DE-L5","weeks":[["","","E","E","","~x","x"],["D","D","","","","~x","x"],["E","E","x","x","","D","D"],["","","x","x","","E","E"]]},{"position":"RN","floor":"Level 4","fte":0.4,"line":6,"hours":31.0,"lineType":"N","identifier":"Flr4-RN-0.4-N-L6","weeks":[["","","","x","xN","N",""],["","","N","N","","~x","x"],["","","N","N","","~x","x"],["","","","x","xN","N",""]]},{"position":"RN","floor":"Level 5","fte":0.8,"line":1,"hours":62.0,"lineType":"D/E","identifier":"Flr5-RN-0.8-DE-L1","weeks":[["D","D","D","D","D","~",""],["","","E","E","E","E","E"],["","","","E","E","E","E"],["","","D","D","","~",""]]},{"position":"RN","floor":"Level 5","fte":0.8,"line":2,"hours":62.0,"lineType":"D/N","identifier":"Flr5-RN-0.8-DN-L2","weeks":[["","","N","N","","~",""],["D","D","D","D","","~",""],["D","D","D","","N","N","N"],["","","","N","N","N","N"]]},{"position":"RN","floor":"Level 5","fte":0.8,"line":3,"hours":62.0,"lineType":"D/E","identifier":"Flr5-RN-0.8-DE-L3","weeks":[["E","E","E","E","","~",""],["E","E","","","D","D","D"],["E","","","D","D","D","D"],["","","E","E","","~",""]]},{"position":"RN","floor":"Level 5","fte":0.8,"line":4,"hours":62.0,"lineType":"D/N","identifier":"Flr5-RN-0.8-DN-L4","weeks":[["N","N","","","","D","D"],["","N","N","N","","~",""],["N","N","N","N","","~",""],["D","D","","","D","D","D"]]},{"position":"RN","floor":"Level 5","fte":0.55,"line":5,"hours":42.625,"lineType":"E/N","identifier":"Flr5-RN-0.6-EN-L5","weeks":[["","","","","N","N","N"],["N","","","","","~",""],["","E","E","","","~",""],["E","E","","","E","E","E"]]},{"position":"RN","floor":"Level 5","fte":0.45,"line":6,"hours":34.875,"lineType":"E/N","identifier":"Flr5-RN-0.5-EN-L6","weeks":[["","","","","E","E","E"],["","","","","N","N","N"],["","","","","","~",""],["N","N","N","","","~",""]]},{"position":"Mental Health Manager","floor":"All Floors / Units","fte":1.0,"line":1,"hours":77.5,"lineType":"D","identifier":"FlrAll-MHM-1-D-L1","weeks":[["D","D","D","D","D","~",""],["D","D","D","D","D","~",""],["D","D","D","D","D","~",""],["D","D","D","D","D","~",""]]},{"position":"Therapy Assistant","floor":"Level 2","fte":1.0,"line":1,"hours":77.5,"lineType":"D","identifier":"Flr2-TA-1-D-L1","weeks":[["D","D","D","D","D","D",""],["","D","D","D","D","~",""],["D","D","D","D","D","~",""],["D","D","D","D","D","~",""]]},{"position":"Therapy Assistant","floor":"Level 3 - 30 Beds","fte":1.0,"line":2,"hours":77.5,"lineType":"D","identifier":"Flr3-TA-1-D-L2","weeks":[["D","D","D","D","D","~",""],["D","D","D","D","D","~",""],["D","D","D","D","D","D",""],["","D","D","D","D","~",""]]},{"position":"Therapy Assistant","floor":"Level 4","fte":1.0,"line":3,"hours":77.5,"lineType":"D","identifier":"Flr4-TA-1-D-L3","weeks":[["","D","D","D","D","~",""],["D","D","D","D","D","~",""],["D","D","D","D","D","~",""],["D","D","D","D","D","D",""]]},{"position":"Therapy Assistant","floor":"Level 5","fte":1.0,"line":4,"hours":77.5,"lineType":"D","identifier":"Flr5-TA-1-D-L4","weeks":[["D","D","D","D","D","~",""],["D","D","D","D","D","D",""],["","D","D","D","D","~",""],["D","D","D","D","D","~",""]]},{"position":"Therapy Aide","floor":"Level 2","fte":1.0,"line":1,"hours":77.5,"lineType":"D/E","identifier":"Flr2-THA-1-DE-L1","weeks":[["D","D","D","D","D","D",""],["","D","D","D","D","D","D"],["","","E","E","E","~",""],["E","E","E","E","E","~",""]]},{"position":"Therapy Aide","floor":"Level 2","fte":1.0,"line":2,"hours":77.5,"lineType":"D/E","identifier":"Flr2-THA-1-DE-L2","weeks":[["","","E","E","E","~",""],["E","E","E","E","E","~",""],["D","D","D","D","D","D",""],["","D","D","D","D","D","D"]]},{"position":"Therapy Aide","floor":"Level 4","fte":1.0,"line":3,"hours":77.5,"lineType":"D/E","identifier":"Flr4-THA-1-DE-L3","weeks":[["D","D","D","D","","","D"],["D","D","D","D","D","~",""],["E","E","E","E","E","~",""],["E","E","E","","","D","D"]]},{"position":"Therapy Aide","floor":"Level 4","fte":1.0,"line":4,"hours":77.5,"lineType":"D/E","identifier":"Flr4-THA-1-DE-L4","weeks":[["E","E","E","E","E","~",""],["E","E","E","","","D","D"],["D","D","D","D","","","D"],["D","D","D","D","D","~",""]]},{"position":"Therapy Aide","floor":"Level 5","fte":1.0,"line":5,"hours":77.5,"lineType":"D/E","identifier":"Flr5-THA-1-DE-L5","weeks":[["E","E","E","","","D","D"],["D","D","D","D","","","D"],["D","D","D","D","D","~",""],["E","E","E","E","E","~",""]]},{"position":"Therapy Aide","floor":"Level 5","fte":1.0,"line":6,"hours":77.5,"lineType":"D/E","identifier":"Flr5-THA-1-DE-L6","weeks":[["D","D","D","D","D","~",""],["E","E","E","E","E","~",""],["E","E","E","","","D","D"],["D","D","D","D","","","D"]]},{"position":"Therapy Aide","floor":"Shared Between Floors","fte":0.6,"line":7,"hours":46.5,"lineType":"D/E","identifier":"FlrShared-THA-0.6-DE-L7","weeks":[["","","","E","E","~",""],["","","","E","E","~",""],["E","E","","","D","D","D"],["D","","","","D","D",""]]},{"position":"Therapy Aide","floor":"Shared Between Floors","fte":0.6,"line":8,"hours":46.5,"lineType":"D/E","identifier":"FlrShared-THA-0.6-DE-L8","weeks":[["E","E","","","D","D","D"],["D","","","","D","D",""],["","","","E","E","~",""],["","","","E","E","~",""]]},{"position":"Therapy Aide","floor":"Level 3","fte":1.0,"line":9,"hours":77.5,"lineType":"D/E","identifier":"Flr3-THA-1-DE-L9","weeks":[["D","D","D","D","D","D",""],["","D","D","D","D","D","D"],["","","E","E","E","~",""],["E","E","E","E","E","~",""]]},{"position":"Therapy Aide","floor":"Level 3","fte":1.0,"line":10,"hours":77.5,"lineType":"D/E","identifier":"Flr3-THA-1-DE-L10","weeks":[["","","E","E","E","~",""],["E","E","E","E","E","~",""],["D","D","D","D","D","D",""],["","D","D","D","D","D","D"]]},{"position":"Therapy Aide","floor":"Level 3","fte":1.0,"line":11,"hours":77.5,"lineType":"D/E","identifier":"Flr3-THA-1-DE-L11","weeks":[["D","D","D","D","","","D"],["D","D","D","D","D","~",""],["E","E","E","E","E","~",""],["E","E","E","","","D","D"]]},{"position":"Therapy Aide","floor":"Level 3","fte":1.0,"line":12,"hours":77.5,"lineType":"D/E","identifier":"Flr3-THA-1-DE-L12","weeks":[["E","E","E","E","E","~",""],["E","E","E","","","D","D"],["D","D","D","D","","","D"],["D","D","D","D","D","~",""]]},{"position":"Therapy Aide","floor":"Level 3 - Shared 15/30 Beds","fte":0.6,"line":13,"hours":46.5,"lineType":"D/E","identifier":"Flr3-THA-0.6-DE-L13","weeks":[["","","","","D","D","D"],["D","","","E","E","~",""],["","","","","D","D","D"],["D","","","E","E","~",""]]},{"position":"Therapy Aide","floor":"Level 3 - Shared 15/30 Beds","fte":0.6,"line":14,"hours":46.5,"lineType":"D/E","identifier":"Flr3-THA-0.6-DE-L14","weeks":[["E","E","","","","~",""],["D","D","","","","E","E"],["E","E","","","","~",""],["D","D","","","","E","E"]]},{"position":"Therapy Aide","floor":"Level 3 - Shared 15/30 Beds","fte":0.4,"line":15,"hours":31.0,"lineType":"D/E","identifier":"Flr3-THA-0.4-DE-L15","weeks":[["D","D","","","","E","E"],["","","","","","~",""],["D","D","","","","E","E"],["","","","","","~",""]]},{"position":"Occupational Therapist","floor":"All Floors / Units","fte":1.0,"line":1,"hours":77.5,"lineType":"D","identifier":"FlrAll-OT-1-D-L1","weeks":[["D","D","D","D","D","~",""],["D","D","D","D","D","~",""],["D","D","D","D","D","~",""],["D","D","D","D","D","~",""]]},{"position":"Occupational Therapist","floor":"All Floors / Units","fte":1.0,"line":2,"hours":77.5,"lineType":"D","identifier":"FlrAll-OT-1-D-L2","weeks":[["D","D","D","D","D","~",""],["D","D","D","D","D","~",""],["D","D","D","D","D","~",""],["D","D","D","D","D","~",""]]},{"position":"Occupational Therapist","floor":"All Floors / Units","fte":1.0,"line":3,"hours":77.5,"lineType":"D","identifier":"FlrAll-OT-1-D-L3","weeks":[["D","D","D","D","D","~",""],["D","D","D","D","D","~",""],["D","D","D","D","D","~",""],["D","D","D","D","D","~",""]]},{"position":"Occupational Therapist","floor":"All Floors / Units","fte":1.0,"line":4,"hours":77.5,"lineType":"D","identifier":"FlrAll-OT-1-D-L4","weeks":[["D","D","D","D","D","~",""],["D","D","D","D","D","~",""],["D","D","D","D","D","~",""],["D","D","D","D","D","~",""]]},{"position":"Recreation Therapist","floor":"Level 2","fte":0.8,"line":1,"hours":62.0,"lineType":"D","identifier":"Flr2-RT-0.8-D-L1","weeks":[["D","D","D","","","D","D"],["D","D","D","","","~",""],["D","D","D","D","","~",""],["","D","D","D","D","~",""]]},{"position":"Recreation Therapist","floor":"Level 4","fte":0.8,"line":2,"hours":62.0,"lineType":"D","identifier":"Flr4-RT-0.8-D-L2","weeks":[["","D","D","D","D","~",""],["D","D","D","","","D","D"],["D","D","D","","","~",""],["D","D","D","D","","~",""]]},{"position":"Recreation Therapist","floor":"Level 5","fte":0.8,"line":3,"hours":62.0,"lineType":"D","identifier":"Flr5-RT-0.8-D-L3","weeks":[["D","D","D","D","","~",""],["","D","D","D","D","~",""],["D","D","D","","","D","D"],["D","D","D","","","~",""]]},{"position":"Recreation Therapist","floor":"Level 3","fte":1.0,"line":4,"hours":77.5,"lineType":"D","identifier":"Flr3-RT-1-D-L4","weeks":[["D","D","D","D","D","~",""],["D","D","D","D","D","~",""],["D","D","D","D","D","~",""],["D","D","D","","","D","D"]]},{"position":"Social Worker II","floor":"Level 2","fte":1.0,"line":1,"hours":77.5,"lineType":"D","identifier":"Flr2-SWII-1-D-L1","weeks":[["D","D","D","D","D","~",""],["D","D","D","D","D","~",""],["D","D","D","D","D","~",""],["D","D","D","D","D","~",""]]},{"position":"Social Worker II","floor":"Level 4","fte":1.0,"line":2,"hours":77.5,"lineType":"D","identifier":"Flr4-SWII-1-D-L2","weeks":[["D","D","D","D","D","~",""],["D","D","D","D","D","~",""],["D","D","D","D","D","~",""],["D","D","D","D","D","~",""]]},{"position":"Social Worker II","floor":"Level 5","fte":1.0,"line":3,"hours":77.5,"lineType":"D","identifier":"Flr5-SWII-1-D-L3","weeks":[["D","D","D","D","D","~",""],["D","D","D","D","D","~",""],["D","D","D","D","D","~",""],["D","D","D","D","D","~",""]]},{"position":"Social Worker II","floor":"Level 3","fte":0.8,"line":4,"hours":62.0,"lineType":"D","identifier":"Flr3-SWII-0.8-D-L4","weeks":[["D","D","D","D","","~",""],["","D","D","D","D","~",""],["D","D","D","D","","~",""],["","D","D","D","D","~",""]]},{"position":"Social Worker II","floor":"Level 3","fte":0.8,"line":5,"hours":62.0,"lineType":"D","identifier":"Flr3-SWII-0.8-D-L5","weeks":[["","D","D","D","D","~",""],["D","D","D","D","","~",""],["","D","D","D","D","~",""],["D","D","D","D","","~",""]]},{"position":"Dietitian","floor":"All Floors / Units","fte":1.0,"line":1,"hours":77.5,"lineType":"D","identifier":"FlrAll-DT-1-D-L1","weeks":[["D","D","D","D","D","~",""],["D","D","D","D","D","~",""],["D","D","D","D","D","~",""],["D","D","D","D","D","~",""]]},{"position":"Dietitian","floor":"All Floors / Units","fte":0.6,"line":2,"hours":46.5,"lineType":"D","identifier":"FlrAll-DT-0.6-D-L2","weeks":[["","D","D","D","","~",""],["","D","D","D","","~",""],["","D","D","D","","~",""],["","D","D","D","","~",""]]},{"position":"Physical Therapist","floor":"All Floors / Units","fte":0.8,"line":1,"hours":62.0,"lineType":"D","identifier":"FlrAll-PT-0.8-D-L1","weeks":[["D","D","D","D","","~",""],["D","D","D","D","","~",""],["D","D","D","D","","~",""],["D","D","D","D","","~",""]]},{"position":"Allied Health Team Lead","floor":"All Floors / Units","fte":1.0,"line":1,"hours":77.5,"lineType":"D","identifier":"FlrAll-AHTL-1-D-L1","weeks":[["D","D","D","D","D","~",""],["D","D","D","D","D","~",""],["D","D","D","D","D","~",""],["D","D","D","D","D","~",""]]},{"position":"Nurse Practitioner","floor":"All Floors / Units","fte":1.0,"line":1,"hours":77.5,"lineType":"D","identifier":"FlrAll-NP-1-D-L1","weeks":[["D","D","D","D","D","~",""],["D","D","D","D","D","~",""],["D","D","D","D","D","~",""],["D","D","D","D","D","~",""]]},{"position":"Mental Health Therapist","floor":"All Floors / Units","fte":1.0,"line":1,"hours":77.5,"lineType":"D","identifier":"FlrAll-MHT-1-D-L1","weeks":[["D","D","D","D","D","D","D"],["","","D","D","D","~",""],["D","D","D","D","D","~",""],["D","D","D","D","D","~",""]]},{"position":"Mental Health Therapist","floor":"All Floors / Units","fte":0.7,"line":2,"hours":54.25,"lineType":"D","identifier":"FlrAll-MHT-0.7-D-L2","weeks":[["D","D","","D","D","~",""],["D","D","","","","D","D"],["D","D","","","","~",""],["D","D","","D","D","~",""]]},{"position":"Mental Health Therapist","floor":"All Floors / Units","fte":0.7,"line":3,"hours":54.25,"lineType":"D","identifier":"FlrAll-MHT-0.7-D-L3","weeks":[["","","D","D","","~",""],["D","D","","D","D","~",""],["D","D","D","D","","~",""],["D","D","","","","D","D"]]},{"position":"Mental Health Therapist","floor":"All Floors / Units","fte":0.6,"line":4,"hours":46.5,"lineType":"D","identifier":"FlrAll-MHT-0.6-D-L4","weeks":[["D","D","","","","~",""],["D","D","D","D","","~",""],["","","","D","D","D","D"],["","","D","D","","~",""]]},{"position":"Social Worker I","floor":"All Floors / Units","fte":1.0,"line":1,"hours":77.5,"lineType":"D","identifier":"FlrAll-SWI-1-D-L1","weeks":[["D","D","D","D","D","D","D"],["","","D","D","D","D","D"],["","","D","D","D","~",""],["D","D","D","D","D","~",""]]},{"position":"Social Worker I","floor":"All Floors / Units","fte":1.0,"line":2,"hours":77.5,"lineType":"D","identifier":"FlrAll-SWI-1-D-L2","weeks":[["","","D","D","D","~",""],["D","D","D","D","D","~",""],["D","D","D","D","D","D","D"],["","","D","D","D","D","D"]]},{"position":"Social Worker I","floor":"All Floors / Units","fte":1.0,"line":3,"hours":77.5,"lineType":"D","identifier":"FlrAll-SWI-1-D-L3","weeks":[["D","D","D","D","D","~",""],["D","D","D","D","D","D","D"],["","","D","D","D","D","D"],["","","D","D","D","~",""]]},{"position":"Social Worker I","floor":"All Floors / Units","fte":1.0,"line":4,"hours":77.5,"lineType":"D","identifier":"FlrAll-SWI-1-D-L4","weeks":[["","","D","D","D","D","D"],["","","D","D","D","~",""],["D","D","D","D","D","~",""],["D","D","D","D","D","D","D"]]},{"position":"Social Worker I","floor":"All Floors / Units","fte":1.0,"line":5,"hours":77.5,"lineType":"D","identifier":"FlrAll-SWI-1-D-L5","weeks":[["D","D","D","","","D","D"],["D","D","D","D","D","~",""],["D","D","D","D","D","~",""],["D","D","D","","","D","D"]]},{"position":"Social Worker I","floor":"All Floors / Units","fte":1.0,"line":6,"hours":77.5,"lineType":"D","identifier":"FlrAll-SWI-1-D-L6","weeks":[["D","D","D","D","D","~",""],["D","D","D","","","D","D"],["D","D","D","","","D","D"],["D","D","D","D","D","~",""]]},{"position":"Social Worker I","floor":"All Floors / Units","fte":0.8,"line":7,"hours":62.0,"lineType":"D","identifier":"FlrAll-SWI-0.8-D-L7","weeks":[["D","D","","","D","D","D"],["D","D","","","","D","D"],["D","D","D","","","~",""],["D","D","","D","D","~",""]]},{"position":"Social Worker I","floor":"All Floors / Units","fte":0.8,"line":8,"hours":62.0,"lineType":"D","identifier":"FlrAll-SWI-0.8-D-L8","weeks":[["D","D","D","","","~",""],["D","D","","D","D","~",""],["D","D","","","D","D","D"],["D","D","","","","D","D"]]}];
+const positionEl=document.getElementById('position');
+const floorEl=document.getElementById('floor');
+const fteEl=document.getElementById('fte');
+const shiftEl=document.getElementById('shift');
+const resultsEl=document.getElementById('results');
+const countEl=document.getElementById('count');
+const resetEl=document.getElementById('reset');
+
+const shiftNames={
+  "D":"Days",
+  "E":"Evenings",
+  "N":"Nights",
+  "D/E":"Days / Evenings",
+  "D/N":"Days / Nights",
+  "E/N":"Evenings / Nights",
+  "D/E/N":"Days / Evenings / Nights"
+};
+
+function uniqueSorted(values,numeric=false) {
+  const vals=[...new Set(values)];
+  return numeric ? vals.sort((a,b)=>Number(b)-Number(a)) : vals.sort();
+}
+
+function refreshFloors() {
+  const pos=positionEl.value;
+  const current=floorEl.value;
+
+  if(!pos) {
+    floorEl.disabled=true;
+    floorEl.innerHTML='<option value="">Select position first</option>';
+    return;
+  }
+
+  const preferredOrder=[
+    'Level 2','Level 3 - 15 Beds','Level 3 - 30 Beds','Level 3',
+    'Level 3 - Shared 15/30 Beds','Level 4','Level 5',
+    'Shared Between Floors','All Floors / Units'
+  ];
+  const vals=[...new Set(lines.filter(r=>r.position===pos).map(r=>r.floor))]
+    .sort((a,b)=>{
+      const ai=preferredOrder.indexOf(a), bi=preferredOrder.indexOf(b);
+      if(ai===-1 && bi===-1) return a.localeCompare(b);
+      if(ai===-1) return 1;
+      if(bi===-1) return -1;
+      return ai-bi;
+    });
+
+  floorEl.disabled=false;
+  floorEl.innerHTML='<option value="">Select floor / unit</option>' +
+    vals.map(v=>`<option value="${v}">${v}</option>`).join('');
+
+  if(vals.includes(current)) floorEl.value=current;
+}
+
+function refreshFTEs() {
+  const pos=positionEl.value;
+  const floor=floorEl.value;
+  const current=fteEl.value;
+
+  if(!(pos && floor)) {
+    fteEl.disabled=true;
+    fteEl.innerHTML='<option value="">Select position and floor first</option>';
+    return;
+  }
+
+  const vals=uniqueSorted(
+    lines.filter(r=>r.position===pos && r.floor===floor).map(r=>String(r.fte)),
+    true
+  );
+
+  fteEl.disabled=false;
+  fteEl.innerHTML='<option value="">Select FTE</option>' +
+    vals.map(v=>`<option value="${v}">${Number(v).toFixed(1)}</option>`).join('');
+
+  if(vals.includes(current)) fteEl.value=current;
+}
+
+function refreshShifts() {
+  const pos=positionEl.value;
+  const floor=floorEl.value;
+  const fte=fteEl.value;
+  const current=shiftEl.value;
+
+  if(!(pos && floor && fte)) {
+    shiftEl.disabled=true;
+    shiftEl.innerHTML='<option value="">Select FTE first</option>';
+    return;
+  }
+
+  const vals=uniqueSorted(
+    lines.filter(r=>r.position===pos && r.floor===floor && String(r.fte)===fte)
+             .map(r=>r.lineType)
+  );
+
+  shiftEl.disabled=false;
+  shiftEl.innerHTML='<option value="">Select shift</option>' +
+    vals.map(v=>`<option value="${v}">${shiftNames[v]||v}</option>`).join('');
+
+  if(vals.includes(current)) shiftEl.value=current;
+}
+
+function cellClass(code) {
+  if(!code || code==="6" || code==="OFF") return 'shift-off';
+  if(code.includes('N')) return 'shift-night';
+  if(code.includes('E')) return 'shift-evening';
+  if(code.includes('D')) return 'shift-day';
+  if(code.includes('~')) return 'shift-weekend';
+  if(code.includes('x')) return 'shift-off';
+  return '';
+}
+
+function displayCode(code) {
+  if(!code || code==="6") return 'OFF';
+  return code;
+}
+
+function card(r) {
+  const days=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  const rows=r.weeks.map((week,i)=>`
+    <tr>
+      <td class="week">Week ${i+1}</td>
+      ${week.map(code=>`<td class="${cellClass(code)}">${displayCode(code)}</td>`).join('')}
+    </tr>`).join('');
+
+  return `
+    <article class="card">
+      <div class="cardhead">
+        <div>
+          <h3>Line ${r.line} <span class="role-pill">${r.position}</span></h3>
+          <div class="meta">${r.fte.toFixed(1)} FTE · ${r.hours} biweekly hours · ${shiftNames[r.lineType]||r.lineType}</div>
+        </div>
+        <div class="meta">${r.floor}</div>
+      </div>
+
+      <div class="tablewrap">
+        <table>
+          <thead>
+            <tr><th>Week</th>${days.map(d=>`<th>${d}</th>`).join('')}</tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+
+      <div class="note"><strong>Line Identifier:</strong> ${r.identifier}<br>${r.weeks.length}-week repeating cycle. After Week ${r.weeks.length}, return to Week 1. Line data is based on the approved master schedule.</div>
+    </article>`;
+}
+
+function render() {
+  const pos=positionEl.value;
+  const floor=floorEl.value;
+  const fte=fteEl.value;
+  const shift=shiftEl.value;
+
+  if(!(pos && floor && fte && shift)) {
+    countEl.textContent='Choose all 4 filters to view Lines.';
+    resultsEl.innerHTML='<div class="empty">Select the required options above to view matching Lines.</div>';
+    return;
+  }
+
+  const matches=lines.filter(r =>
+    r.position===pos &&
+    r.floor===floor &&
+    String(r.fte)===fte &&
+    r.lineType===shift
+  );
+
+  countEl.textContent=`${matches.length} matching Line${matches.length===1?'':'s'}`;
+  resultsEl.innerHTML=matches.length
+    ? matches.map(card).join('')
+    : '<div class="empty">No Lines match those filters. Try another FTE or shift combination.</div>';
+}
+
+positionEl.addEventListener('change',()=>{
+  floorEl.value='';
+  fteEl.value='';
+  shiftEl.value='';
+  refreshFloors();
+  refreshFTEs();
+  refreshShifts();
+  render();
+});
+
+floorEl.addEventListener('change',()=>{
+  fteEl.value='';
+  shiftEl.value='';
+  refreshFTEs();
+  refreshShifts();
+  render();
+});
+
+fteEl.addEventListener('change',()=>{
+  shiftEl.value='';
+  refreshShifts();
+  render();
+});
+
+shiftEl.addEventListener('change',render);
+
+resetEl.addEventListener('click',()=>{
+  positionEl.value='';
+  floorEl.value='';
+  floorEl.disabled=true;
+  floorEl.innerHTML='<option value="">Select position first</option>';
+  fteEl.disabled=true;
+  fteEl.innerHTML='<option value="">Select position and floor first</option>';
+  shiftEl.disabled=true;
+  shiftEl.innerHTML='<option value="">Select FTE first</option>';
+  render();
+});
+
+render();
+</script>
+</body>
+</html>
