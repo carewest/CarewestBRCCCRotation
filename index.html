@@ -324,7 +324,7 @@ th {
       <span><i class="dot" style="background:var(--evening)"></i> Evening</span>
       <span><i class="dot" style="background:var(--night)"></i> Night</span>
       <span><i class="dot" style="background:var(--off)"></i> Off / x</span>
-      <span><i class="dot" style="background:var(--green)"></i> Weekend marker (~)</span>
+      <span><i class="dot" style="background:var(--green)">
     </div>
   </section>
 
@@ -433,16 +433,17 @@ function cellClass(code) {
   if(code.includes('N')) return 'shift-night';
   if(code.includes('E')) return 'shift-evening';
   if(code.includes('D')) return 'shift-day';
-  if(code.includes('~')) return 'shift-weekend';
   if(code.includes('x')) return 'shift-off';
   return '';
 }
 
 function displayCode(code) {
-  if(!code || code==="6") return 'OFF';
-  if(code==="EF") return 'E';
-  if(code==="DF") return 'D';
-  return code;
+  if(!code || code==="6" || code==="OFF" || code==="x" || code==="~") return 'x';
+  let cleaned=String(code).replace(/~/g,'').trim();
+  if(cleaned==="EF") return 'E';
+  if(cleaned==="DF") return 'D';
+  if(!cleaned) return 'x';
+  return cleaned;
 }
 
 function card(r) {
