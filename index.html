@@ -266,7 +266,7 @@ th {
       <div>
         <label for="position">Position *</label>
         <select id="position">
-          <option value="">Select position</option>
+          <option value="">Select Position</option>
           <optgroup label="Nursing & Care">
             <option value="HCA">HCA</option>
             <option value="LPN">LPN</option>
@@ -295,14 +295,14 @@ th {
       <div>
         <label for="floor">Floor *</label>
         <select id="floor" disabled>
-          <option value="">Select position first</option>
+          <option value="">All positions first</option>
         </select>
       </div>
 
       <div>
         <label for="fte">FTE *</label>
         <select id="fte" disabled>
-          <option value="">Select position and floor first</option>
+          <option value="">All positions and floor first</option>
         </select>
       </div>
 
@@ -368,27 +368,13 @@ function refreshFloors() {
     return;
   }
 
-  const preferredOrder=[
-    'Level 2','Level 3 - 15 Beds','Level 3 - 30 Beds','Level 3',
-    'Level 3 - Shared 15/30 Beds','Level 4','Level 5',
-    'Reception','Trust Office','Shared Between Floors','All Floors / Units'
-  ];
-  const vals=[...new Set(lines.filter(r=>r.position===pos).map(r=>r.floor))]
-    .sort((a,b)=>{
-      const ai=preferredOrder.indexOf(a), bi=preferredOrder.indexOf(b);
-      if(ai===-1 && bi===-1) return a.localeCompare(b);
-      if(ai===-1) return 1;
-      if(bi===-1) return -1;
-      return ai-bi;
-    });
-
+  const vals=uniqueSorted(lines.filter(r=>r.position===pos).map(r=>r.floor));
   floorEl.disabled=false;
   floorEl.innerHTML='<option value="">Select floor / unit</option>' +
     vals.map(v=>`<option value="${v}">${v}</option>`).join('');
 
   if(vals.includes(current)) floorEl.value=current;
 }
-
 
 function formatFTE(value) {
   const n = Number(value);
@@ -432,7 +418,7 @@ function refreshShifts() {
 
   const vals=uniqueSorted(
     lines.filter(r=>r.position===pos && r.floor===floor && String(r.fte)===fte)
-             .map(r=>r.lineType)
+         .map(r=>r.lineType)
   );
 
   shiftEl.disabled=false;
@@ -454,6 +440,8 @@ function cellClass(code) {
 
 function displayCode(code) {
   if(!code || code==="6") return 'OFF';
+  if(code==="EF") return 'E';
+  if(code==="DF") return 'D';
   return code;
 }
 
@@ -544,13 +532,21 @@ resetEl.addEventListener('click',()=>{
   floorEl.value='';
   floorEl.disabled=true;
   floorEl.innerHTML='<option value="">Select position first</option>';
+  fteEl.value='';
   fteEl.disabled=true;
   fteEl.innerHTML='<option value="">Select position and floor first</option>';
+  shiftEl.value='';
   shiftEl.disabled=true;
   shiftEl.innerHTML='<option value="">Select FTE first</option>';
   render();
 });
 
+floorEl.disabled=true;
+floorEl.innerHTML='<option value="">Select position first</option>';
+fteEl.disabled=true;
+fteEl.innerHTML='<option value="">Select position and floor first</option>';
+shiftEl.disabled=true;
+shiftEl.innerHTML='<option value="">Select FTE first</option>';
 render();
 </script>
 </body>
