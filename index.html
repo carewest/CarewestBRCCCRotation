@@ -273,7 +273,7 @@ th {
   <div class="wrap hero-row">
     <div>
       <h1>Bridgeland Line Finder</h1>
-      <p>Choose your position, floor, FTE and shift combination to view the matching Line schedules.</p>
+      <p>Choose your position to see available Lines, then use Floor, FTE and Shift Combination in any order to narrow the results.</p>
     </div>
     <nav class="hero-nav" aria-label="Site navigation">
       <a class="hero-link" href="decision-criteria.html">Decision Criteria</a>
@@ -317,29 +317,29 @@ th {
       </div>
 
       <div>
-        <label for="floor">Floor *</label>
+        <label for="floor">Floor</label>
         <select id="floor" disabled>
-          <option value="">Select position first</option>
+          <option value="">Choose position first</option>
         </select>
       </div>
 
       <div>
-        <label for="fte">FTE *</label>
+        <label for="fte">FTE</label>
         <select id="fte" disabled>
-          <option value="">Select position and floor first</option>
+          <option value="">Choose position first</option>
         </select>
       </div>
 
       <div>
-        <label for="shift">Shift Combination *</label>
+        <label for="shift">Shift Combination</label>
         <select id="shift" disabled>
-          <option value="">Select FTE first</option>
+          <option value="">Choose position first</option>
         </select>
       </div>
     </div>
 
     <div class="actions">
-      <div id="count" class="count">Choose all 4 filters to view Lines.</div>
+      <div id="count" class="count">Choose a position to view Lines.</div>
       <button id="reset" type="button">Reset filters</button>
     </div>
 
@@ -360,7 +360,7 @@ th {
   </section>
 
   <section id="results" class="results">
-    <div class="empty">Select the required options above to view matching Lines.</div>
+    <div class="empty">Choose a position above to view available Lines.</div>
   </section>
 </main>
 
@@ -389,82 +389,78 @@ function uniqueSorted(values,numeric=false) {
   return numeric ? vals.sort((a,b)=>Number(b)-Number(a)) : vals.sort();
 }
 
-function refreshFloors() {
+function matchesSelected(r, exclude='') {
   const pos=positionEl.value;
-  const current=floorEl.value;
+  if(!pos || r.position!==pos) return false;
+  if(exclude!=='floor' && floorEl.value && r.floor!==floorEl.value) return false;
+  if(exclude!=='fte' && fteEl.value && String(r.fte)!==fteEl.value) return false;
+  if(exclude!=='shift' && shiftEl.value && r.lineType!==shiftEl.value) return false;
+  return true;
+}
+
+function setFilterOptions(el, values, placeholder, formatter=v=>v) {
+  const current=el.value;
+  el.disabled=false;
+  el.innerHTML=`<option value="">${placeholder}</option>` +
+    values.map(v=>`<option value="${v}">${formatter(v)}</option>`).join('');
+  if(values.includes(current)) {
+    el.value=current;
+    return false;
+  }
+  if(current) {
+    el.value='';
+    return true;
+  }
+  return false;
+}
+
+function refreshFilters() {
+  const pos=positionEl.value;
 
   if(!pos) {
     floorEl.disabled=true;
-    floorEl.innerHTML='<option value="">Select position first</option>';
+    floorEl.innerHTML='<option value="">Choose position first</option>';
+    fteEl.disabled=true;
+    fteEl.innerHTML='<option value="">Choose position first</option>';
+    shiftEl.disabled=true;
+    shiftEl.innerHTML='<option value="">Choose position first</option>';
     return;
   }
 
   const preferredOrder=[
     'Level 2','Level 3 - 15 Beds','Level 3 - 30 Beds','Level 3',
     'Level 3 - Shared 15/30 Beds','Level 4','Level 5',
-    'Reception','Trust Office','Shared Between Floors','All Floors / Units'
+    'Reception','Trust Office','Shared Between Floors','All Floors','All Floors / Units'
   ];
-  const vals=[...new Set(lines.filter(r=>r.position===pos).map(r=>r.floor))]
-    .sort((a,b)=>{
-      const ai=preferredOrder.indexOf(a), bi=preferredOrder.indexOf(b);
-      if(ai===-1 && bi===-1) return a.localeCompare(b);
-      if(ai===-1) return 1;
-      if(bi===-1) return -1;
-      return ai-bi;
-    });
 
-  floorEl.disabled=false;
-  floorEl.innerHTML='<option value="">Select floor / unit</option>' +
-    vals.map(v=>`<option value="${v}">${v}</option>`).join('');
+  // Recalculate a few times so an invalid selection cleared in one facet
+  // immediately widens the valid choices in the other facets.
+  for(let pass=0; pass<3; pass++) {
+    let changed=false;
 
-  if(vals.includes(current)) floorEl.value=current;
-}
+    const floors=[...new Set(lines.filter(r=>matchesSelected(r,'floor')).map(r=>r.floor))]
+      .sort((a,b)=>{
+        const ai=preferredOrder.indexOf(a), bi=preferredOrder.indexOf(b);
+        if(ai===-1 && bi===-1) return a.localeCompare(b);
+        if(ai===-1) return 1;
+        if(bi===-1) return -1;
+        return ai-bi;
+      });
+    changed = setFilterOptions(floorEl, floors, 'All floors / units') || changed;
 
-function refreshFTEs() {
-  const pos=positionEl.value;
-  const floor=floorEl.value;
-  const current=fteEl.value;
+    const ftes=uniqueSorted(
+      lines.filter(r=>matchesSelected(r,'fte')).map(r=>String(r.fte)),
+      true
+    );
+    changed = setFilterOptions(fteEl, ftes, 'All FTEs', v=>Number(v).toFixed(1)) || changed;
 
-  if(!(pos && floor)) {
-    fteEl.disabled=true;
-    fteEl.innerHTML='<option value="">Select position and floor first</option>';
-    return;
+    const shifts=uniqueSorted(
+      lines.filter(r=>matchesSelected(r,'shift')).map(r=>r.lineType)
+    );
+    changed = setFilterOptions(shiftEl, shifts, 'All shift combinations', v=>shiftNames[v]||v) || changed;
+
+    if(!changed) break;
   }
-
-  const vals=uniqueSorted(
-    lines.filter(r=>r.position===pos && r.floor===floor).map(r=>String(r.fte)),
-    true
-  );
-
-  fteEl.disabled=false;
-  fteEl.innerHTML='<option value="">Select FTE</option>' +
-    vals.map(v=>`<option value="${v}">${Number(v).toFixed(1)}</option>`).join('');
-
-  if(vals.includes(current)) fteEl.value=current;
-}
-
-function refreshShifts() {
-  const pos=positionEl.value;
-  const floor=floorEl.value;
-  const fte=fteEl.value;
-  const current=shiftEl.value;
-
-  if(!(pos && floor && fte)) {
-    shiftEl.disabled=true;
-    shiftEl.innerHTML='<option value="">Select FTE first</option>';
-    return;
-  }
-
-  const vals=uniqueSorted(
-    lines.filter(r=>r.position===pos && r.floor===floor && String(r.fte)===fte)
-             .map(r=>r.lineType)
-  );
-
-  shiftEl.disabled=false;
-  shiftEl.innerHTML='<option value="">Select shift</option>' +
-    vals.map(v=>`<option value="${v}">${shiftNames[v]||v}</option>`).join('');
-
-  if(vals.includes(current)) shiftEl.value=current;
 }
 
 function cellClass(code) {
@@ -541,67 +537,49 @@ function card(r) {
 
 function render() {
   const pos=positionEl.value;
-  const floor=floorEl.value;
-  const fte=fteEl.value;
-  const shift=shiftEl.value;
 
-  if(!(pos && floor && fte && shift)) {
-    countEl.textContent='Choose all 4 filters to view Lines.';
-    resultsEl.innerHTML='<div class="empty">Select the required options above to view matching Lines.</div>';
+  if(!pos) {
+    countEl.textContent='Choose a position to view Lines.';
+    resultsEl.innerHTML='<div class="empty">Choose a position above to view available Lines.</div>';
     return;
   }
 
-  const matches=lines.filter(r =>
-    r.position===pos &&
-    r.floor===floor &&
-    String(r.fte)===fte &&
-    r.lineType===shift
-  );
+  const matches=lines.filter(r=>matchesSelected(r));
+  const activeFilters=[floorEl.value, fteEl.value, shiftEl.value].filter(Boolean).length;
 
-  countEl.textContent=`${matches.length} matching Line${matches.length===1?'':'s'}`;
+  countEl.textContent=`${matches.length} matching Line${matches.length===1?'':'s'}` +
+    (activeFilters ? ` · ${activeFilters} filter${activeFilters===1?'':'s'} applied` : ' · showing all for this position');
+
   resultsEl.innerHTML=matches.length
     ? matches.map(card).join('')
-    : '<div class="empty">No Lines match those filters. Try another FTE or shift combination.</div>';
+    : '<div class="empty">No Lines match that combination. Clear or change a filter to widen the results.</div>';
 }
 
 positionEl.addEventListener('change',()=>{
   floorEl.value='';
   fteEl.value='';
   shiftEl.value='';
-  refreshFloors();
-  refreshFTEs();
-  refreshShifts();
+  refreshFilters();
   render();
 });
 
-floorEl.addEventListener('change',()=>{
-  fteEl.value='';
-  shiftEl.value='';
-  refreshFTEs();
-  refreshShifts();
-  render();
+[floorEl, fteEl, shiftEl].forEach(el=>{
+  el.addEventListener('change',()=>{
+    refreshFilters();
+    render();
+  });
 });
-
-fteEl.addEventListener('change',()=>{
-  shiftEl.value='';
-  refreshShifts();
-  render();
-});
-
-shiftEl.addEventListener('change',render);
 
 resetEl.addEventListener('click',()=>{
   positionEl.value='';
   floorEl.value='';
-  floorEl.disabled=true;
-  floorEl.innerHTML='<option value="">Select position first</option>';
-  fteEl.disabled=true;
-  fteEl.innerHTML='<option value="">Select position and floor first</option>';
-  shiftEl.disabled=true;
-  shiftEl.innerHTML='<option value="">Select FTE first</option>';
+  fteEl.value='';
+  shiftEl.value='';
+  refreshFilters();
   render();
 });
 
+refreshFilters();
 render();
 </script>
 </body>
